@@ -109,10 +109,15 @@ jobs:
           SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
           SHARD_BUCKET_MAP: ${{ secrets.SHARD_BUCKET_MAP }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SWEEP_MINUTES_INPUT: ${{ inputs.minutes }}
           PYTHONDONTWRITEBYTECODE: "1"
         working-directory: src
         run: |
-          MINS="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.minutes || '25' }}"
+          MINS="${SWEEP_MINUTES_INPUT:-25}"
+          if [[ ! "$MINS" =~ ^[0-9]+$ ]] || (( MINS < 1 || MINS > 30 )); then
+            echo "minutes must be an integer from 1 to 30" >&2
+            exit 2
+          fi
           python tools/run_masked.py tools/social_sweep.py \
             --shard ${{ matrix.shard }}/5 --minutes "$MINS"
 
