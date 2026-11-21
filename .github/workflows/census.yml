@@ -75,11 +75,16 @@ jobs:
           DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
           SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
           SHARD_BUCKET_MAP: ${{ secrets.SHARD_BUCKET_MAP }}
+          CENSUS_WINDOW_INPUT: ${{ inputs.window }}
           PYTHONDONTWRITEBYTECODE: "1"
           SHARD_COUNT: "4"
         working-directory: src
         run: |
-          WINDOW="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.window || '0' }}"
+          WINDOW="${CENSUS_WINDOW_INPUT:-0}"
+          if [[ ! "$WINDOW" =~ ^[0-9]+$ ]] || (( WINDOW > 40000 )); then
+            echo "window must be an integer from 0 to 40000" >&2
+            exit 2
+          fi
           python tools/run_masked.py tools/update_frontier.py \
             --plan-only --window "$WINDOW" --shards "$SHARD_COUNT" --plan-out scan-plan.json
           python -c "import json; print('plan=' + json.dumps(json.load(open('scan-plan.json')), separators=(',', ':')))" >> "$GITHUB_OUTPUT"
