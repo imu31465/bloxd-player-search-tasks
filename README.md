@@ -42,6 +42,19 @@ writer branch, and Altare reader are being verified.
 The schedules are present but the gate prevents them from running jobs until
 the cutover is explicitly enabled.
 
+## Repository variables
+
+Open **Settings → Secrets and variables → Actions → Variables** and add:
+
+| Name | Value |
+|---|---|
+| `SHARD_PROJECT_IDS` | `{"shard-01":"old-haze-17838481","shard-02":"twilight-violet-22165713","shard-03":"sparkling-star-88747543","shard-04":"super-meadow-54405222"}` |
+| `PLAYER_SEARCH_SHARD_CUTOVER` | Leave unset until every cutover condition above is verified; then set to `ready` |
+
+The project IDs are non-secret identities, but they must match the Neon project
+that owns each corresponding URL. The migration code rejects duplicate IDs,
+including different branch endpoints that belong to one Neon project.
+
 ## Repository secrets
 
 Open **Settings → Secrets and variables → Actions → Repository secrets** and
