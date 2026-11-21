@@ -1,0 +1,204 @@
+name: census
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+    inputs:
+      window:
+        description: "IDs to probe past the saved census cursor (0 = adaptive, max 40,000 per run)"
+        required: false
+        default: "0"
+
+# A run snapshots the saved census cursor, then fans one bounded range out to
+# four independent runners. Each writes its disjoint shard to Neon; only the
+# finalizer advances the shared cursor. Never overlap census plans.
+concurrency:
+  group: census
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    if: ${{ vars.PLAYER_SEARCH_SHARD_CUTOVER == 'ready' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      plan: ${{ steps.plan.outputs.plan }}
+      source_sha: ${{ steps.plan.outputs.source_sha }}
+    steps:
+      - name: Clone task sources (read-only deploy key)
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git clone --depth 1 --branch runner --filter=blob:none --sparse \
+            git@github.com:imu31465/bloxd-player-search.git src
+          if [ -n "${SOURCE_SHA:-}" ]; then
+            git -C src fetch --depth 1 origin "$SOURCE_SHA"
+            git -C src checkout --detach "$SOURCE_SHA"
+          fi
+          git -C src sparse-checkout set --no-cone '/tools/' '/app.py' '/sharding.py' '/requirements.txt' '/cosmetics_codec.py' '/cosmetics_dictionary.json'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r src/requirements.txt
+
+      - name: Validate runner code and shard partitioning
+        working-directory: src
+        run: |
+          python -m py_compile tools/update_frontier.py tools/bloxd_census.py tools/run_masked.py
+          python - <<'PY'
+          from tools.update_frontier import split_scan_range
+          for lo, hi, count in ((1, 40_000, 4), (2_823_346, 2_863_345, 4), (9, 19, 3)):
+              shards = split_scan_range(lo, hi, count)
+              assert shards[0]["min_id"] == lo
+              assert shards[-1]["max_id"] == hi
+              assert sum(s["max_id"] - s["min_id"] + 1 for s in shards) == hi - lo + 1
+          print("shard partition checks passed")
+          PY
+
+      - name: Snapshot moving frontier and create shard plan
+        id: plan
+        env:
+          DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
+          SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
+          SHARD_BUCKET_MAP: ${{ secrets.SHARD_BUCKET_MAP }}
+          PYTHONDONTWRITEBYTECODE: "1"
+          SHARD_COUNT: "4"
+        working-directory: src
+        run: |
+          WINDOW="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.window || '0' }}"
+          python tools/run_masked.py tools/update_frontier.py \
+            --plan-only --window "$WINDOW" --shards "$SHARD_COUNT" --plan-out scan-plan.json
+          python -c "import json; print('plan=' + json.dumps(json.load(open('scan-plan.json')), separators=(',', ':')))" >> "$GITHUB_OUTPUT"
+          echo "shards=[$(seq -s, 0 $((SHARD_COUNT - 1)))]" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  scan:
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: ${{ fromJSON(needs.prepare.outputs.shards) }}
+    steps:
+      - name: Clone task sources (read-only deploy key)
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git clone --depth 1 --branch runner --filter=blob:none --sparse \
+            git@github.com:imu31465/bloxd-player-search.git src
+          if [ -n "${SOURCE_SHA:-}" ]; then
+            git -C src fetch --depth 1 origin "$SOURCE_SHA"
+            git -C src checkout --detach "$SOURCE_SHA"
+          fi
+          git -C src sparse-checkout set --no-cone '/tools/' '/app.py' '/sharding.py' '/requirements.txt' '/cosmetics_codec.py' '/cosmetics_dictionary.json'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r src/requirements.txt
+
+      - name: Scan and store assigned ID range in Neon
+        env:
+          DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
+          SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
+          SHARD_BUCKET_MAP: ${{ secrets.SHARD_BUCKET_MAP }}
+          PYTHONDONTWRITEBYTECODE: "1"
+          SCAN_PLAN: ${{ needs.prepare.outputs.plan }}
+          CENSUS_RUN_ID: ${{ github.run_id }}
+        working-directory: src
+        run: |
+          printf '%s' "$SCAN_PLAN" > scan-plan.json
+          python tools/run_masked.py tools/update_frontier.py \
+            --store-shard --plan-file scan-plan.json --shard-index "${{ matrix.shard }}" \
+            --run-id "$CENSUS_RUN_ID" --workers 8 \
+            --out "census-shard-${{ matrix.shard }}.json"
+
+  finalize:
+    needs: [prepare, scan]
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    timeout-minutes: 15
+    steps:
+      - name: Clone task sources (read-only deploy key)
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git clone --depth 1 --branch runner --filter=blob:none --sparse \
+            git@github.com:imu31465/bloxd-player-search.git src
+          if [ -n "${SOURCE_SHA:-}" ]; then
+            git -C src fetch --depth 1 origin "$SOURCE_SHA"
+            git -C src checkout --detach "$SOURCE_SHA"
+          fi
+          git -C src sparse-checkout set --no-cone '/tools/' '/app.py' '/sharding.py' '/requirements.txt' '/cosmetics_codec.py' '/cosmetics_dictionary.json'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r src/requirements.txt
+
+      - name: Validate DB receipts and advance frontier
+        env:
+          DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
+          SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
+          SHARD_BUCKET_MAP: ${{ secrets.SHARD_BUCKET_MAP }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PYTHONDONTWRITEBYTECODE: "1"
+          SCAN_PLAN: ${{ needs.prepare.outputs.plan }}
+          CENSUS_RUN_ID: ${{ github.run_id }}
+        working-directory: src
+        run: |
+          printf '%s' "$SCAN_PLAN" > scan-plan.json
+          python tools/run_masked.py tools/update_frontier.py \
+            --finalize --plan-file scan-plan.json --run-id "$CENSUS_RUN_ID"
+
+  notify-failure:
+    if: ${{ vars.PLAYER_SEARCH_SHARD_CUTOVER == 'ready' && failure() }}
+    needs: [prepare, scan, finalize]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify failure
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then exit 0; fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          PAYLOAD=$(printf '{"embeds":[{"title":"❌ census job failed","color":15158332,"fields":[{"name":"リポジトリ","value":"%s","inline":true},{"name":"実行ログ","value":"[run #%s](%s)","inline":true}],"timestamp":"%s"}]}' \
+            "$GITHUB_REPOSITORY" "$GITHUB_RUN_NUMBER" "$RUN_URL" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" > /dev/null
