@@ -16,6 +16,7 @@ source and player data are not copied here.
 | `sweep.yml` | Every 30 minutes + manual | Five concurrent social-profile sweep workers |
 | `enrich.yml` | Daily + manual | Profile enrichment drip / selected IDs |
 | `name-scan.yml` | Manual | Four-character name availability scan |
+| `source-pr-validation.yml` | Manual | Compile/test private source PRs and Altare; verify runner secrets with read-only Neon SELECTs |
 
 Each workflow checks out the private source repository's `runner` branch using
 the read-only `DEPLOY_KEY` repository secret.
