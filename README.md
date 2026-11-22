@@ -60,7 +60,7 @@ including different branch endpoints that belong to one Neon project.
 ## Repository secrets
 
 Open **Settings → Secrets and variables → Actions → Repository secrets** and
-add:
+add four secrets:
 
 | Name | Value |
 |---|---|
@@ -68,14 +68,13 @@ add:
 | `DISCORD_WEBHOOK_URL` | Player Search notification webhook |
 | `SHARD_01_DATABASE_URL` | Neon connection URL for `bloxd-search-shard-01` |
 | `SHARD_DATABASE_URLS` | One-line JSON object containing all four Neon connection URLs |
-| `SHARD_BUCKET_MAP` | One-line JSON array with the 64 virtual-bucket assignments |
 
 Use the Neon Console **Connect** panel for each shard connection string. The
 `SHARD_01_DATABASE_URL` value must exactly match the `shard-01` entry inside
 `SHARD_DATABASE_URLS`. Do not paste connection strings or private keys into
 chat, commits, workflow inputs, or logs.
 
-The required bucket map for the current initial placement is:
+The non-secret 64-entry bucket map is pinned directly in each workflow file. The four workflows use the same initial placement and must be updated together if the physical placement changes:
 
 ```json
 ["shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04"]
