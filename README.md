@@ -122,4 +122,4 @@ Public-runner run [#11](https://github.com/imu31465/bloxd-player-search-tasks/ac
 - Source PR #6 head `50b72db6e8207336683241cd4aa8dc2c641fa689`: 23 unit/SQLite tests plus the same PostgreSQL 4-shard writer integration test.
 - All four target Neon connection/read-only permission checks passed without printing secret values.
 
-The Altare branch subsequently received documentation-only commits; its current PR HEAD is `be33021fea066da29776294d60a53186cadbbe84`. The code/test files at `b935e9e` are unchanged since run #11. All three PRs remain Draft/open/unmerged. No production migration, Altare deployment, traffic cutover, or schedule activation has occurred. The production gate remains unset. This validation does not authorize cutover by itself.
+The Altare branch subsequently received documentation-only commits after the tested code/test head `b935e9e`; the migration/application/test files are unchanged since run #11. All three PRs remain Draft/open/unmerged. No production migration, Altare deployment, traffic cutover, or schedule activation has occurred. The production gate remains unset. This validation does not authorize cutover by itself.
