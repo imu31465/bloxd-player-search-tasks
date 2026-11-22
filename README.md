@@ -36,9 +36,9 @@ writer branch, and Altare reader are being verified.
 3. The shard-aware Altare reader is deployed and its ID/name/former-name search,
    profiles/history, lists, sorting, pagination, CSV, changes, and health checks
    pass against all four shards.
-4. The five repository secrets below and the `SHARD_PROJECT_IDS`
-   repository variable are configured with the intended four distinct Neon
-   projects.
+4. The four repository secrets below are configured with the intended
+   four distinct Neon projects. The non-secret project/bucket maps are pinned
+   in the workflow files.
 
 The schedules are present but the gate prevents them from running jobs until
 the cutover is explicitly enabled.
