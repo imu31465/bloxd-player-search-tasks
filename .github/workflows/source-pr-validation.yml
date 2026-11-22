@@ -81,7 +81,7 @@ jobs:
           # an earlier commit. The job logs the checked-out SHA for audit.
           # Keep this workflow manual/validation-only; production jobs have a separate gate.
           # Validation docs in the private PR are reviewed with each exact branch-head checkout.
-          # The Altare suite must exercise the real CLI pre-copy capacity guard and resume path.
+          # The Altare suite must exercise the real CLI pre-copy capacity guard on every shard during dry-run and resume.
           - label: "PR #5 — main writer"
             source_ref: "feature/neon-free-sharding"
           - label: "PR #6 — runner writer"
