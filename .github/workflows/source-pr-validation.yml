@@ -77,15 +77,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Resolve the live PR branch heads on every run, rather than pinning
-          # an earlier commit. The job logs the checked-out SHA for audit.
-          # Keep this workflow manual/validation-only; production jobs have a separate gate.
-          # Validation docs in the private PR are reviewed with each exact branch-head checkout.
-          # The Altare suite must exercise the real CLI pre-copy capacity guard on every shard during dry-run and resume.
-          - label: "PR #5 — main writer"
-            source_ref: "feature/neon-free-sharding"
-          - label: "PR #6 — runner writer"
-            source_ref: "feature/runner-neon-free-sharding"
+          # Post-merge verification: exercise the actual production branches,
+          # not the now-merged topic branches. Exact resolved SHAs are logged.
+          - label: "Merged main — source writer"
+            source_ref: "main"
+          - label: "Merged runner — scheduled writer"
+            source_ref: "runner"
 
     steps:
       - name: Clone the selected private source branch
@@ -222,7 +219,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - name: Clone the private Altare PR branch
+      - name: Clone the private Altare main branch
         id: altare
         shell: bash
         env:
@@ -254,7 +251,7 @@ jobs:
           ALTARE_SHA: ${{ steps.altare.outputs.altare_sha }}
         run: |
           {
-            echo "### Altare `feature/neon-free-sharding`"
+            echo "### Altare `main`"
             echo ""
             echo "`$ALTARE_SHA`"
             echo ""
