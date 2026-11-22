@@ -2,6 +2,11 @@ name: Private source PR validation (public runner)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/source-pr-validation.yml"
 
 permissions:
   contents: read
@@ -75,7 +80,73 @@ jobs:
   validate-altare:
     name: Altare reader and migration tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
+    services:
+      pg-source:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      pg-shard-01:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      pg-shard-02:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      pg-shard-03:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5436:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      pg-shard-04:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5437:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Clone the private Altare PR branch
         shell: bash
@@ -116,8 +187,15 @@ jobs:
         working-directory: altare
         run: python -m compileall -q app.py sharding.py scripts tests
 
-      - name: Run Altare unit and SQLite integration suite
+      - name: Run Altare unit, SQLite, and PostgreSQL migration integration suites
         working-directory: altare
+        env:
+          ALTARE_PG_INTEGRATION: "1"
+          ALTARE_TEST_SOURCE_DATABASE_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5433/postgres"
+          ALTARE_TEST_SHARD_01_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5434/postgres"
+          ALTARE_TEST_SHARD_02_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5435/postgres"
+          ALTARE_TEST_SHARD_03_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5436/postgres"
+          ALTARE_TEST_SHARD_04_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5437/postgres"
         run: python -m unittest discover -s tests -v
 
   validate-runner-secrets:
