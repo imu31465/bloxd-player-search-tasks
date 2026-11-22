@@ -187,7 +187,7 @@ jobs:
         working-directory: altare
         run: python -m compileall -q app.py sharding.py scripts tests
 
-      - name: Run Altare unit, SQLite, and PostgreSQL migration integration suites
+      - name: Run Altare unit, SQLite, and required PostgreSQL migration suites
         working-directory: altare
         env:
           ALTARE_PG_INTEGRATION: "1"
