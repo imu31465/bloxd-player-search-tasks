@@ -16,7 +16,7 @@ source and player data are not copied here.
 | `sweep.yml` | Every 30 minutes + manual | Five concurrent social-profile sweep workers |
 | `enrich.yml` | Daily + manual | Profile enrichment drip / selected IDs |
 | `name-scan.yml` | Manual | Four-character name availability scan |
-| `source-pr-validation.yml` | Manual | Compile/test private source PRs and Altare; verify runner secrets with read-only Neon SELECTs |
+| `source-pr-validation.yml` | Manual + workflow-file update | Test private source PRs #5/#6, run Altare SQLite and PostgreSQL migration integration tests on five disposable PostgreSQL services, and verify runner secrets with read-only Neon SELECTs |
 
 Each workflow checks out the private source repository's `runner` branch using
 the read-only `DEPLOY_KEY` repository secret.
@@ -25,8 +25,9 @@ the read-only `DEPLOY_KEY` repository secret.
 
 All production jobs require the repository variable
 `PLAYER_SEARCH_SHARD_CUTOVER=ready`. If it is missing or has any other value,
-jobs are skipped. This keeps the new workflows inert while the Neon migration,
-writer branch, and Altare reader are being verified.
+jobs are skipped. The validation workflow is independent of this gate. This keeps
+production schedules inert while the Neon migration, writer branch, and Altare
+reader are being verified.
 
 **Do not set this variable until all of the following are true:**
 
@@ -60,9 +61,9 @@ including different branch endpoints that belong to one Neon project.
 
 ## Optional private Altare validation secret
 
-The manual `source-pr-validation.yml` workflow also validates the private Altare reader/migration PR on public runners. For this validation-only job, add a separate read-only Deploy Key to `imu31465/bloxd-player-search-altare` and store its private key in this repository as `ALTARE_VALIDATION_DEPLOY_KEY`.
+The `source-pr-validation.yml` workflow also validates the private Altare reader/migration PR on public runners. It clones the Altare branch using a separate read-only Deploy Key stored in this repository as `ALTARE_VALIDATION_DEPLOY_KEY`. The validation job starts five disposable PostgreSQL 16 services (one source and four targets), runs the real migration CLI against synthetic records, and never uses Neon or production connection URLs.
 
-This is separate from the source-repository `DEPLOY_KEY`; GitHub Deploy Keys cannot be reused across repositories. This optional validation key is not used by scheduled production workflows.
+This is separate from the source-repository `DEPLOY_KEY`; GitHub Deploy Keys cannot be reused across repositories. This validation key is not used by scheduled production workflows. The public workflow is configured to run after changes to its own workflow file; dispatch it manually after changing the private Altare branch to validate the exact latest head.
 
 ## Repository secrets
 
