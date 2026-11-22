@@ -41,7 +41,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
           SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
-          SHARD_BUCKET_MAP: ${{ secrets.SHARD_BUCKET_MAP }}
+          SHARD_BUCKET_MAP: '["shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04"]'
           SHARD_PROJECT_IDS: '{"shard-01":"old-haze-17838481","shard-02":"twilight-violet-22165713","shard-03":"sparkling-star-88747543","shard-04":"super-meadow-54405222"}'
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           PYTHONDONTWRITEBYTECODE: "1"
