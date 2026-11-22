@@ -189,7 +189,12 @@ jobs:
           urls = json.loads(os.environ["SHARD_DATABASE_URLS"])
           for key in ("shard-01", "shard-02", "shard-03", "shard-04"):
               try:
-                  with psycopg.connect(urls[key], connect_timeout=10) as conn:
+                  url = urls[key]
+                  if url.startswith("postgresql+psycopg://"):
+                      url = "postgresql://" + url[len("postgresql+psycopg://"):]
+                  elif url.startswith("postgres://"):
+                      url = "postgresql://" + url[len("postgres://"):]
+                  with psycopg.connect(url, connect_timeout=30) as conn:
                       row = conn.execute("""
                           SELECT current_user,
                                  has_schema_privilege(current_user, 'public', 'USAGE'),
