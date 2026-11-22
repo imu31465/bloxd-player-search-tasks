@@ -116,10 +116,10 @@ new sharded writers concurrently during the migration/cutover window.
 
 ## Latest planner validation — 2026-11-22
 
-Public-runner run [#8](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45016775461) completed with all four jobs successful. It checked the live private PR branch heads and ran:
-- Altare PR #1 at `3a04022782209c1eedde258c9fb0b8429740101d`: 41 tests passed, including the required PostgreSQL 16 end-to-end migration test on five disposable services.
-- Source PR #5 at `59230a3a9a6444911857e144726f77f45a7320a2`: 37 tests passed, including the profile live-refresh freeze.
-- Source PR #6 at `78ea8fcf1a0a0925e9f2d49202324a39d7ba95ab`: 23 tests passed.
+Public-runner run [#11](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45028368640) completed with all four jobs successful. It checked the live private PR branch heads and ran:
+- Altare PR #1 code/test head `b935e9ea3469242f7a7827f6600637f7bb064f8a`: 41 tests passed on five disposable PostgreSQL 16 services, including the actual migration CLI. The integration test explicitly asserts all four target capacity preflights run during dry-run and resume.
+- Source PR #5 head `10b07eae5d7cc18957e5fcb582f541ed1fd7b066`: 37 unit/SQLite tests plus a successful PostgreSQL 4-shard writer integration test.
+- Source PR #6 head `50b72db6e8207336683241cd4aa8dc2c641fa689`: 23 unit/SQLite tests plus the same PostgreSQL 4-shard writer integration test.
 - All four target Neon connection/read-only permission checks passed without printing secret values.
 
-All three PRs remain Draft/open/unmerged. No production migration, Altare deployment, traffic cutover, or schedule activation has occurred. The production gate remains unset. This validation does not authorize cutover by itself.
+The Altare branch subsequently received documentation-only commits; its current PR HEAD is `be33021fea066da29776294d60a53186cadbbe84`. The code/test files at `b935e9e` are unchanged since run #11. All three PRs remain Draft/open/unmerged. No production migration, Altare deployment, traffic cutover, or schedule activation has occurred. The production gate remains unset. This validation does not authorize cutover by itself.
