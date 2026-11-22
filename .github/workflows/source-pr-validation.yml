@@ -196,7 +196,14 @@ jobs:
           ALTARE_TEST_SHARD_02_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5435/postgres"
           ALTARE_TEST_SHARD_03_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5436/postgres"
           ALTARE_TEST_SHARD_04_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5437/postgres"
-        run: python -m unittest discover -s tests -v
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee altare-tests.log
+          if grep -q "skipped 'requires the disposable PostgreSQL services" altare-tests.log; then
+            echo "::error::The PostgreSQL migration integration test was skipped."
+            exit 1
+          fi
+          grep -q "test_dry_run_copy_resume_manifests_read_only_and_sequences" altare-tests.log
 
   validate-runner-secrets:
     name: Verify scheduled-runner secrets and Neon read access
