@@ -57,6 +57,12 @@ must be kept in sync with the four project URLs in the secrets and with the
 local migration/Altare environment. The application rejects duplicate IDs,
 including different branch endpoints that belong to one Neon project.
 
+## Optional private Altare validation secret
+
+The manual `source-pr-validation.yml` workflow also validates the private Altare reader/migration PR on public runners. For this validation-only job, add a separate read-only Deploy Key to `imu31465/bloxd-player-search-altare` and store its private key in this repository as `ALTARE_VALIDATION_DEPLOY_KEY`.
+
+This is separate from the source-repository `DEPLOY_KEY`; GitHub Deploy Keys cannot be reused across repositories. This optional validation key is not used by scheduled production workflows.
+
 ## Repository secrets
 
 Open **Settings → Secrets and variables → Actions → Repository secrets** and
