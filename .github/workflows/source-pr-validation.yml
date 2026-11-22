@@ -24,6 +24,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Resolve the live PR branch heads on every run, rather than pinning
+          # an earlier commit. The job logs the checked-out SHA for audit.
           - label: "PR #5 — main writer"
             source_ref: "feature/neon-free-sharding"
           - label: "PR #6 — runner writer"
