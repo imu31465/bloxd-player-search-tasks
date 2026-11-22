@@ -119,3 +119,85 @@ jobs:
       - name: Run Altare unit and SQLite integration suite
         working-directory: altare
         run: python -m unittest discover -s tests -v
+
+  validate-runner-secrets:
+    name: Verify scheduled-runner secrets and Neon read access
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate secret presence and JSON structure without printing values
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SHARD_01_DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
+          SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from urllib.parse import urlparse
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL", "")
+          shard01 = os.environ.get("SHARD_01_DATABASE_URL", "")
+          raw = os.environ.get("SHARD_DATABASE_URLS", "")
+          if not webhook or not shard01 or not raw:
+              raise SystemExit("One or more scheduled-runner secrets are missing.")
+
+          parsed_webhook = urlparse(webhook)
+          if parsed_webhook.scheme != "https" or parsed_webhook.hostname not in {"discord.com", "discordapp.com"} or not parsed_webhook.path.startswith("/api/webhooks/"):
+              raise SystemExit("DISCORD_WEBHOOK_URL has an unexpected URL shape.")
+
+          try:
+              urls = json.loads(raw)
+          except json.JSONDecodeError as exc:
+              raise SystemExit("SHARD_DATABASE_URLS is not valid JSON.") from exc
+          expected = {"shard-01", "shard-02", "shard-03", "shard-04"}
+          if not isinstance(urls, dict) or set(urls) != expected:
+              raise SystemExit("SHARD_DATABASE_URLS must contain exactly shard-01 through shard-04.")
+          if urls["shard-01"] != shard01:
+              raise SystemExit("SHARD_01_DATABASE_URL does not exactly match shard-01 in SHARD_DATABASE_URLS.")
+
+          hosts = set()
+          for key, value in urls.items():
+              parsed = urlparse(value if not value.startswith("postgres://") else "postgresql://" + value[len("postgres://"):])
+              if parsed.scheme not in {"postgresql", "postgresql+psycopg"} or not parsed.hostname or not parsed.username or not parsed.password:
+                  raise SystemExit(f"{key} is not a complete PostgreSQL connection URL.")
+              labels = parsed.hostname.lower().split(".", 1)
+              labels[0] = labels[0].removesuffix("-pooler")
+              host = ".".join(labels)
+              if host in hosts:
+                  raise SystemExit("Two shard URLs resolve to the same Neon endpoint host.")
+              hosts.add(host)
+          print("Scheduled-runner secret structure: valid (values withheld).")
+          PY
+
+      - name: Install PostgreSQL driver
+        run: python -m pip install "psycopg[binary]>=3.2,<4.0"
+
+      - name: Verify each target connection with read-only SELECT
+        shell: bash
+        env:
+          SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import psycopg
+
+          urls = json.loads(os.environ["SHARD_DATABASE_URLS"])
+          for key in ("shard-01", "shard-02", "shard-03", "shard-04"):
+              try:
+                  with psycopg.connect(urls[key], connect_timeout=10) as conn:
+                      row = conn.execute("""
+                          SELECT current_user,
+                                 has_schema_privilege(current_user, 'public', 'USAGE'),
+                                 has_schema_privilege(current_user, 'public', 'CREATE')
+                      """).fetchone()
+                  if row[0] != "player_search_app" or not row[1] or not row[2]:
+                      raise RuntimeError("unexpected role or public-schema privileges")
+              except Exception as exc:
+                  raise SystemExit(f"{key}: connection/grant check failed ({type(exc).__name__}).") from None
+              print(f"{key}: SELECT and least-privilege app-role grants verified.")
+          PY
