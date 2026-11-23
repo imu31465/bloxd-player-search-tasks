@@ -1,5 +1,6 @@
 {
-  "enabled": true,
+  "enabled": false,
   "purpose": "one-time Discord webhook delivery verification",
-  "created_at": "2026-11-23T13:35:00Z"
+  "created_at": "2026-11-23T13:35:00Z",
+  "note": "One-shot webhook smoke test completed successfully; Discord accepted the POST with HTTP 204 at 2026-11-23 13:39 UTC. Leave disabled to prevent repeat sends."
 }
