@@ -8,6 +8,11 @@ on:
     paths:
       - ".github/workflows/source-pr-validation.yml"
       - ".github/workflows/production-availability.yml"
+      - ".github/workflows/census.yml"
+      - ".github/workflows/sweep.yml"
+      - ".github/workflows/enrich.yml"
+      - ".github/workflows/name-scan.yml"
+      - "CUTOVER.json"
 
 permissions:
   contents: read
@@ -492,6 +497,29 @@ jobs:
             YAML.load_file(path, aliases: true)
             puts "YAML syntax OK: #{path}"
           end
+          RUBY
+
+      - name: Verify all writer workflows use the tracked gate
+        run: |
+          ruby - <<'RUBY'
+          paths = %w[
+            .github/workflows/census.yml
+            .github/workflows/sweep.yml
+            .github/workflows/enrich.yml
+            .github/workflows/name-scan.yml
+          ]
+          paths.each do |path|
+            body = File.read(path)
+            abort "#{path} is missing the fail-closed cutover gate" unless
+              body.include?("name: cutover-gate") &&
+              body.include?("needs: cutover-gate") &&
+              body.include?("needs.cutover-gate.outputs.enabled == 'true'")
+            puts "Tracked cutover gate OK: #{path}"
+          end
+          enrich = File.read(".github/workflows/enrich.yml")
+          abort "enrich.yml is missing its one-shot ENRICH_NOW trigger" unless
+            enrich.include?('"ENRICH_NOW.json"')
+          puts "One-shot initial enrichment trigger OK"
           RUBY
 
       - name: Validate the tracked writer cutover switch schema
