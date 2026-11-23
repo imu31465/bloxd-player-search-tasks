@@ -511,7 +511,7 @@ jobs:
           paths.each do |path|
             body = File.read(path)
             abort "#{path} is missing the fail-closed cutover gate" unless
-              body.include?("\\n  cutover-gate:\\n") &&
+              body.match?(/^  cutover-gate:$/) &&
               body.include?("needs:") &&
               body.include?("needs.cutover-gate.outputs.enabled == 'true'")
             puts "Tracked cutover gate OK: #{path}"
