@@ -155,6 +155,7 @@ jobs:
         working-directory: src
         run: python tests/verify_postgres_shard_writes.py
 
+# Post-deploy regression: Altare main's startup must provision both current-name and history-name GIN indexes on all four shards.
   validate-altare:
     name: Altare reader and migration tests
     runs-on: ubuntu-latest
