@@ -90,6 +90,8 @@ jobs:
             source_ref: "main"
           - label: "Merged runner — scheduled writer"
             source_ref: "runner"
+          - label: "Enrichment cursor PR #7 — exact candidate head"
+            source_ref: "fix/enrich-resume-unprocessed-ids"
 
     steps:
       - name: Clone the selected private source branch
