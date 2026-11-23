@@ -299,6 +299,52 @@ jobs:
           fi
           grep -q "test_dry_run_copy_resume_manifests_read_only_and_sequences" altare-tests.log
 
+      - name: Verify current and former-name trigram indexes on all four PostgreSQL shards
+        working-directory: altare
+        env:
+          DATABASE_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5434/postgres"
+          SHARD_DATABASE_URLS: '{"shard-01":"postgresql+psycopg://postgres:postgres@127.0.0.1:5434/postgres","shard-02":"postgresql+psycopg://postgres:postgres@127.0.0.1:5435/postgres","shard-03":"postgresql+psycopg://postgres:postgres@127.0.0.1:5436/postgres","shard-04":"postgresql+psycopg://postgres:postgres@127.0.0.1:5437/postgres"}'
+          SHARD_PROJECT_IDS: '{"shard-01":"test-shard-01","shard-02":"test-shard-02","shard-03":"test-shard-03","shard-04":"test-shard-04"}'
+          APP_PASSWORD: "altare-index-ci-password"
+          SECRET_KEY: "altare-index-ci-secret-key"
+          RATELIMIT_STORAGE_URI: "memory://"
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          shard_urls = json.loads(os.environ["SHARD_DATABASE_URLS"])
+          keys = list(shard_urls)
+          if len(keys) != 4:
+              raise SystemExit(f"Expected four PostgreSQL shards, got {len(keys)}")
+          os.environ["SHARD_BUCKET_MAP"] = json.dumps(
+              [key for key in keys for _ in range(64 // len(keys))]
+          )
+
+          import app
+          from sqlalchemy import text
+
+          expected = {
+              "ix_players_name_norm_trgm",
+              "ix_player_snapshots_name_norm_trgm",
+          }
+          for shard_key, engine in app.shard_router.engines.items():
+              with engine.connect() as connection:
+                  indexes = {
+                      row[0] for row in connection.execute(text(
+                          "SELECT indexname FROM pg_indexes "
+                          "WHERE schemaname='public' "
+                          "AND tablename IN ('players','player_snapshots')"
+                      ))
+                  }
+              missing = expected - indexes
+              if missing:
+                  raise SystemExit(
+                      f"{shard_key} is missing trigram search indexes: {sorted(missing)}"
+                  )
+              print(f"{shard_key}: current-name and former-name GIN indexes OK")
+          PY
+
   validate-live-sp-token:
     name: Verify the current Bloxd SP session token
     runs-on: ubuntu-latest
