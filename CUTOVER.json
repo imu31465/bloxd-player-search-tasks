@@ -1,7 +1,7 @@
 {
-  "enabled": false,
-  "activated_at": null,
+  "enabled": true,
+  "activated_at": "2026-11-23T12:59:21.461Z",
   "altare_production_commit": "f9dc395e22c268f739297ff8c591f705c6a0a504",
-  "validation_run_id": 45178124440,
-  "note": "Gate dry-run checkpoint: enabled remains false. Verify census/sweep execute only the fail-closed gate and skip all writer jobs. After that verified run, enable true with a separate reviewed commit."
+  "validation_run_id": 45179000969,
+  "note": "Production cutover enabled after successful false-gate dry run and full validation Run #22. Starts initial census and sweep. Enrich resumes on its daily schedule. Set enabled=false in a follow-up commit to pause future starts; cancel already-running jobs separately for immediate stop."
 }
