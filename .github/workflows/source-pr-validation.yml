@@ -375,3 +375,42 @@ jobs:
                   raise SystemExit(f"{key}: connection/grant check failed ({type(exc).__name__}).") from None
               print(f"{key}: SELECT and least-privilege app-role grants verified.")
           PY
+
+  production-gateway-smoke:
+    name: Verify production gateway health and login
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public gateway health across four shards
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://bloxd-player-search-gateway.ltfahel1733.workers.dev"
+          curl --fail --silent --show-error \
+            --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 10 --max-time 30 \
+            "$BASE_URL/health" -o health.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("health.json").read_text(encoding="utf-8"))
+          if payload.get("status") != "ok" or payload.get("shards") != 4:
+              raise SystemExit(f"Unexpected production health response: {payload!r}")
+          print("Production gateway health: ok; all four shards reported.")
+          PY
+
+      - name: Check the public login page
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://bloxd-player-search-gateway.ltfahel1733.workers.dev"
+          status="$(curl --silent --show-error --output login.html \
+            --write-out '%{http_code}' --connect-timeout 10 --max-time 30 \
+            "$BASE_URL/login")"
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Public login page returned HTTP $status."
+            exit 1
+          fi
+          grep -Eiq '<!doctype html|<html' login.html
+          echo "Production login page: HTTP 200."
