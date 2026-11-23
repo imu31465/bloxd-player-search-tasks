@@ -1,6 +1,11 @@
 name: enrich
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ENRICH_NOW.json"
   schedule:
     # Daily: probe 429 storms are per-runner-IP luck, so a failed or
     # degraded run should retry on a fresh runner the next day instead of
