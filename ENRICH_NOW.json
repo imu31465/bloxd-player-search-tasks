@@ -1,11 +1,11 @@
 {
-  "purpose": "resume-post-cutover-profile-enrichment-after-cursor-fix",
-  "created_at": "2026-11-23T15:51:00Z",
+  "purpose": "five-way-resumable-profile-enrichment-run-after-cursor-fix",
+  "created_at": "2026-11-24T00:00:00Z",
   "writer_cutover_enabled": true,
   "initial_census_run_id": 45179485652,
   "initial_sweep_run_id": 45179485667,
-  "enrichment_runner_commit": "a2181445371ad15017cc1abcf7cb03475f440c83",
+  "enrichment_runner_commit": "a2f3acd4770696a93f328e3ae2dbe743349722ac",
   "cursor_fix_pr": 7,
-  "validation_run_id": 45209469082,
-  "note": "One-shot enrichment rerun after the first run's 429 storm and unchanged cursor. Uses the merged pending-ID resume cursor plus 10,000 probes, one probe worker, three 120-second retry rounds, and a 400-profile fetch cap. Further runs remain on the daily schedule."
+  "validation_run_id": 45275942820,
+  "note": "One-shot five-worker enrichment run after Run #4 reached the 400-profile fetch cap with 4,578 pending IDs. Runs five disjoint id%5 partitions on independent runner IPs with cursors census_enrich_cursor_0..4 seeded from legacy cursor 242336; each worker uses one probe thread, bounded 429 retries, 10k probe limit, and 400 social-fetch cap. Inspect every worker log and the persisted five cursors plus four-shard counts before accepting. Daily schedule remains enabled."
 }
