@@ -227,3 +227,17 @@ Read-only reconciliation after Run #8: players `2,902,783`, snapshots `243,527`,
 Fix: task workflow commit `5bc105cbbff239c1334d77dab4956daef20711fd` keeps the deploy key until after `sparse-checkout set` completes, then removes it. Validation Run #42 (`45276393947`) passed all 7 jobs: runner SHA `a2f3acd4770696a93f328e3ae2dbe743349722ac` (32 unit/SQLite tests + PostgreSQL writer integration), main SHA `ab3b94e25250d03ad95d5351744c22374a8dffe4` (37 unit/SQLite tests + PostgreSQL writer integration), Altare migration/four-shard GIN checks, live token, Neon grants, gateway and workflow YAML. The key-order fix is validated syntactically and will be exercised by the next live run.
 
 The next one-shot retry uses the same five pinned disjoint partitions. Accept only after all five logs show the enrichment script ran and the five cursor keys plus four-shard integrity have been independently verified.
+
+
+## Five-worker live attempt #2 — 2026-11-24 (bucket-map correction)
+
+Task enrich Run #9 (`45276688505`) reached all five Drip workers after the private sparse-clone credential-order fix, but all five stopped before profile fetch with `ValueError: SHARD_BUCKET_MAP must be a JSON array of exactly 64 shard names`. Inspection of the workflow showed 63 entries: 16 each for shard-01/02/03 and only 15 for shard-04. This was a workflow configuration defect, not a Neon or Bloxd failure.
+
+Correction in task workflow commit `536b7c6d0e017bbd22fcce6ab7626900c53b58dd`:
+- Replaced the map using the proven 64-entry map from `sweep.yml` (16 buckets per each of four shards).
+- Added a guard at the beginning of the Drip step to validate exactly 64 entries, 16 per shard, and complete project/URL maps before importing the application or opening a database connection.
+- Run #43 (`45276953466`) validated the corrected workflow at that exact task HEAD and passed 7/7 jobs: private main/runner tests and PG writer checks, Altare migration and GIN checks, live token, Neon grants, gateway, and YAML.
+
+Post-Run #9 read-only DB reconciliation: players `2,902,783`, snapshots `243,527`, orphan snapshots `0`; legacy cursor `242336`; no `census_enrich_cursor_0..4` keys. Therefore Run #9 did not update production rows or create shard cursors.
+
+Next attempt must print `Storage map validated: 64 buckets, 16 per shard; all four shard configs present` in every worker log before the script starts. Only accept after all five fetch summaries and cursor keys are reconciled.
