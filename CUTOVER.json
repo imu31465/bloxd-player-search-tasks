@@ -3,5 +3,5 @@
   "activated_at": null,
   "altare_production_commit": "f9dc395e22c268f739297ff8c591f705c6a0a504",
   "validation_run_id": 45178124440,
-  "note": "Fail-closed switch for census, sweep, enrich, and name-scan. Change enabled to true only after browser acceptance and validation; set it back to false to pause future scheduled starts."
+  "note": "Gate dry-run checkpoint: enabled remains false. Verify census/sweep execute only the fail-closed gate and skip all writer jobs. After that verified run, enable true with a separate reviewed commit."
 }
