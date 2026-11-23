@@ -50,22 +50,60 @@ jobs:
               raise SystemExit("CUTOVER.json must contain a boolean enabled field")
           print("enabled=" + str(enabled).lower())
           PY
-  drip:
+  prepare:
     needs: cutover-gate
     if: ${{ needs.cutover-gate.outputs.enabled == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 5
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
     steps:
-      - name: Clone task sources (read-only deploy key)
+      - name: Resolve one private runner revision for all five workers
+        id: source
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          printf '%s\\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
-          git clone --depth 1 --branch runner --filter=blob:none --sparse \
+          git clone --depth 1 --branch runner --filter=blob:none --sparse \\
             git@github.com:imu31465/bloxd-player-search.git src
+          SOURCE_SHA="$(git -C src rev-parse HEAD)"
+          rm -f ~/.ssh/id_ed25519
+          unset DEPLOY_KEY
+          echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Pinned source runner SHA: $SOURCE_SHA"
+
+  drip:
+    needs: [cutover-gate, prepare]
+    if: ${{ needs.cutover-gate.outputs.enabled == 'true' && (!inputs.force_ids || matrix.shard == 0) }}
+    env:
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    steps:
+      - name: Clone task sources at the pinned runner revision
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git clone --depth 1 --branch runner --filter=blob:none --sparse \\
+            git@github.com:imu31465/bloxd-player-search.git src
+          git -C src fetch --depth 1 origin "$SOURCE_SHA"
+          git -C src checkout --detach "$SOURCE_SHA"
+          rm -f ~/.ssh/id_ed25519
+          unset DEPLOY_KEY
           git -C src sparse-checkout set --no-cone '/tools/' '/app.py' '/sharding.py' '/requirements.txt' '/cosmetics_codec.py' '/cosmetics_dictionary.json'
 
       - uses: actions/setup-python@v5
@@ -78,12 +116,8 @@ jobs:
         run: pip install -r src/requirements.txt
 
       - name: Resolve live SP token (bloxd.io redeploy rotation)
-        # Same rationale as sweep.yml: re-derive the anti-bot 3PSIDMCSP
-        # statically from the live JS bundle (minifier-proof anchors) and
-        # validate it by minting; the Playwright browser capture only runs
-        # when that fails. app.py also derives on its own at import, so a
-        # total failure here is survivable. head/tr keep $SP to one clean
-        # 60-char line no matter what any library prints.
+        # Each independent runner resolves and validates its own token. Values
+        # are masked and never written to the job summary or public log.
         continue-on-error: true
         working-directory: src
         run: |
@@ -101,26 +135,22 @@ jobs:
             echo "SP token resolution failed; app.py will derive live or use the committed fallback"
           fi
 
-      - name: Drip refresh
+      - name: Drip refresh partition ${{ matrix.shard }}/5
         env:
           DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
           SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
-          SHARD_BUCKET_MAP: '["shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04"]'
+          SHARD_BUCKET_MAP: '["shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04"]'
           SHARD_PROJECT_IDS: '{"shard-01":"old-haze-17838481","shard-02":"twilight-violet-22165713","shard-03":"sparkling-star-88747543","shard-04":"super-meadow-54405222"}'
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           FORCE_IDS_INPUT: ${{ inputs.force_ids }}
           PYTHONDONTWRITEBYTECODE: "1"
         working-directory: src
         run: |
-          # The previous 25k / 20-worker batch produced 22,521 probe
-          # 429s in its first wave and still had 9,345 unresolved after
-          # three retries. Keep the probe rate serial and the batch bounded;
-          # the fixed cursor now resumes at the first unresolved ID.
-          ARGS=(--limit 10000 --probe-workers 1 --probe-retry-rounds 3 \
-                --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400)
-          # Manual dispatch: optionally force-fetch specific player ids.
-          # The value is passed through the environment, then validated as a
-          # whole before being used as one CLI argument.
+          # Five independent modulo partitions use isolated cursor keys and
+          # runner IPs; this mirrors the already-proven 5-worker social sweep.
+          ARGS=(--limit 10000 --probe-workers 1 --probe-retry-rounds 3 \\
+                --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400 \\
+                --shard "${{ matrix.shard }}/5")
           if [ -n "$FORCE_IDS_INPUT" ]; then
             if [[ ! "$FORCE_IDS_INPUT" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
               echo "force_ids must be a comma-separated list of non-negative integers" >&2
@@ -138,17 +168,18 @@ jobs:
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then exit 0; fi
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \\
+            -H "Content-Type: application/json" \\
             -d '{
               "embeds": [{
-                "title": "❌ enrich job failed",
+                "title": "❌ enrich shard ${{ matrix.shard }} failed",
                 "color": 15158332,
                 "fields": [
                   {"name": "リポジトリ", "value": "'"${GITHUB_REPOSITORY}"'", "inline": true},
+                  {"name": "シャード", "value": "${{ matrix.shard }}/5", "inline": true},
                   {"name": "実行ログ", "value": "[run #'"${GITHUB_RUN_NUMBER}"']('"$RUN_URL"')", "inline": true}
                 ],
                 "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
               }]
-            }' \
+            }' \\
             > /dev/null
