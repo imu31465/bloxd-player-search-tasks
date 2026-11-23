@@ -103,9 +103,11 @@ jobs:
             git@github.com:imu31465/bloxd-player-search.git src
           git -C src fetch --depth 1 origin "$SOURCE_SHA"
           git -C src checkout --detach "$SOURCE_SHA"
+          # Sparse checkout may lazily fetch filtered blobs from the private
+          # promisor remote, so keep the deploy key until it has completed.
+          git -C src sparse-checkout set --no-cone '/tools/' '/app.py' '/sharding.py' '/requirements.txt' '/cosmetics_codec.py' '/cosmetics_dictionary.json'
           rm -f ~/.ssh/id_ed25519
           unset DEPLOY_KEY
-          git -C src sparse-checkout set --no-cone '/tools/' '/app.py' '/sharding.py' '/requirements.txt' '/cosmetics_codec.py' '/cosmetics_dictionary.json'
 
       - uses: actions/setup-python@v5
         if: ${{ !inputs.force_ids || matrix.shard == 0 }}
