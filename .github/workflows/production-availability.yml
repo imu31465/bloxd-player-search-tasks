@@ -1,6 +1,11 @@
 name: production availability
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/production-availability.yml"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
