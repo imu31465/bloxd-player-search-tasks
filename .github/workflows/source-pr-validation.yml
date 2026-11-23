@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - ".github/workflows/source-pr-validation.yml"
+      - ".github/workflows/production-availability.yml"
 
 permissions:
   contents: read
@@ -414,3 +415,19 @@ jobs:
           fi
           grep -Eiq '<!doctype html|<html' login.html
           echo "Production login page: HTTP 200."
+
+  lint-workflows:
+    name: Validate workflow YAML syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse all workflow definitions
+        run: |
+          ruby - <<'RUBY'
+          require "yaml"
+          Dir.glob(".github/workflows/*.yml").sort.each do |path|
+            YAML.load_file(path, aliases: true)
+            puts "YAML syntax OK: #{path}"
+          end
+          RUBY
