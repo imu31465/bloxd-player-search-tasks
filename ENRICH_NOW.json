@@ -1,11 +1,11 @@
 {
-  "purpose": "five-way-resumable-profile-enrichment-run-after-cursor-fix",
-  "created_at": "2026-11-24T00:00:00Z",
+  "purpose": "retry-five-worker-enrichment-after-lazy-fetch-auth-fix",
+  "created_at": "2026-11-23T22:08:09.230Z",
   "writer_cutover_enabled": true,
   "initial_census_run_id": 45179485652,
   "initial_sweep_run_id": 45179485667,
   "enrichment_runner_commit": "a2f3acd4770696a93f328e3ae2dbe743349722ac",
   "cursor_fix_pr": 7,
-  "validation_run_id": 45275942820,
-  "note": "One-shot five-worker enrichment run after Run #4 reached the 400-profile fetch cap with 4,578 pending IDs. Runs five disjoint id%5 partitions on independent runner IPs with cursors census_enrich_cursor_0..4 seeded from legacy cursor 242336; each worker uses one probe thread, bounded 429 retries, 10k probe limit, and 400 social-fetch cap. Inspect every worker log and the persisted five cursors plus four-shard counts before accepting. Daily schedule remains enabled."
+  "validation_run_id": 45276393947,
+  "note": "Retry five-worker profile enrichment after fixing the partial-clone deploy-key lifetime. Run #8 failed all five workers before any profile fetch because the SSH deploy key was removed before git sparse-checkout fetched lazy blobs. Workflow commit 5bc105cbbff239c1334d77dab4956daef20711fd keeps the key until sparse checkout completes; validation Run #42 passed all seven jobs. Five disjoint id%5 workers use pinned runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac and independent cursors census_enrich_cursor_0..4 seeded from legacy 242336. Inspect every worker log, all five cursor values, and four-shard integrity before acceptance."
 }
