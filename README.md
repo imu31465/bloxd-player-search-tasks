@@ -178,3 +178,23 @@ Latest run: https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/4
 - Source heads tested by Run #21: `main` `ab3b94e25250d03ad95d5351744c22374a8dffe4`; `runner` `dd8d723392be429b88d38aff45b98f587fcb27c1`. Altare deployed/tested head: `f9dc395e22c268f739297ff8c591f705c6a0a504`.
 - Run #22 also passed after the tracked-gate conversion: [run #22](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45179000969). It validated the `CUTOVER.json` schema and all four updated writer workflow YAML files, reran the full Altare/PostgreSQL/source checks, and re-minted the current Bloxd token without logging its value.
 - `CUTOVER.json` was enabled at commit `8a3597ec179e0e7a80601631907bd10b41e6d004` after the `enabled: false` dry-run workflows both completed successfully with every writer job skipped. The latest post-change validation [Run #25](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45182467944) passed all 7 jobs, including the shared writer-group gate checks and the `ENRICH_NOW.json` one-shot trigger. Census, sweep, and enrich now share one workflow-level concurrency group so they cannot write to Neon concurrently. Initial census run [#24](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45179485652) completed successfully: all 4 scan partitions finished with zero per-chunk probe errors, found 31,877 records, added 30,000 new players, and protected 1,877 enriched existing rows. Direct read-only checks after census finalization show 2,902,783 players and 241,919 snapshots, with 0 orphan snapshots; the next frontier cursor is 3,013,345 (2,000-ID overlap). Initial sweep run [#24](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45179485667) completed successfully across all five shards: 2,349 profile attempts, 2,345 successful fetches, 4 deleted/missing profiles (`gone`), 0 other errors, and 2 rank changes. All five worker cursors were saved. Direct read-only SQL after census+sweep shows 2,902,783 players, 243,062 snapshots, and 0 orphan snapshots across four shards. The first post-cutover enrich was then started by `ENRICH_NOW.json`: [run #45184140662](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45184140662); token mint validation passed and the drip refresh is running. Keep the original source database intact for rollback.
+
+
+## Enrichment cursor recovery — 2026-11-24
+
+The first post-cutover enrichment run was **not a full completion**, despite GitHub Actions showing a successful job conclusion. Run [#3 / 45184140662](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45184140662) ended after 1,490 seconds with the explicit log result:
+
+`ok 400, changed 99, refreshed 179, snapshots 99, gone 14, err 0, skipped 4653, probe429 9345`, cursor `238032 -> 238032`, `ABORTED (fetch cap 400 reached)`.
+
+The old implementation rewound the entire probe batch after a severe 429 storm and advanced to the end of a batch when the 400-call social-fetch budget was hit. That could repeatedly revisit the same range or defer unprocessed candidates until a full table wrap.
+
+**Correction merged to the private source `runner` branch:**
+- PR [#7](https://github.com/imu31465/bloxd-player-search/pull/7), merge commit `4747d199f20d903f3704e712e9838932c03722f8`.
+- The cursor now resumes at the earliest unresolved ID, including probe 429s, unprocessed candidates after the fetch cap, transient fetch failures, and candidates left after a mint failure.
+- The run summary and Discord embed report the number of pending IDs.
+- Five new cursor regression tests cover earliest-pending selection, normal advancement, wrap-around, pending priority, and invalid pending IDs.
+- Exact candidate head `e8b3b06c82c2d2796910538aeb93b3ca226c03af` passed public-runner validation [#36 / 45208940184](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45208940184): 28 unit/SQLite tests, the four-disposable-PostgreSQL writer integration, plus the full 8-job production validation workflow.
+
+**Enrichment request rate was also reduced:** the scheduled workflow now probes at most 10,000 IDs per run with one probe worker, three retry rounds with 120-second initial wait, a 400-profile social-fetch cap, and a 50-minute job timeout. The daily schedule remains in place; it is not an hourly social-API poll.
+
+Latest direct read-only Neon totals after census, sweep, and the first enrich run: **2,902,783 players, 243,160 snapshots, 0 orphan snapshots** across all four shards. Keep the source production database intact for rollback.
