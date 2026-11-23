@@ -12,8 +12,8 @@ source and player data are not copied here.
 
 | Workflow | Trigger | Work |
 |---|---|---|
-| `census.yml` | Every 30 minutes + manual | Four parallel ID-range workers; shared moving frontier |
-| `sweep.yml` | Every 30 minutes + manual | Five concurrent social-profile sweep workers |
+| `census.yml` | Hourly at :47 UTC + manual | Four parallel ID-range workers; shared moving frontier |
+| `sweep.yml` | Hourly at :13 UTC + manual | Five concurrent social-profile sweep workers |
 | `enrich.yml` | Daily + manual + `ENRICH_NOW.json` commit | Profile enrichment drip / selected IDs; the tracked file gives a one-shot initial run after the first sweep finishes |
 | `name-scan.yml` | Manual | Four-character name availability scan |
 | `source-pr-validation.yml` | Manual + workflow-file update | Test merged source `main`/`runner` and merged Altare `main`, run PostgreSQL integration suites on disposable services, verify runner secrets with read-only Neon SELECTs, and lint workflow YAML |
@@ -27,9 +27,12 @@ the read-only `DEPLOY_KEY` repository secret.
 The census, sweep, and enrich workflows share the repository-wide
 `player-search-writers` concurrency group. Only one of these database writers
 may run at a time; the five sweep shards still run in parallel inside their
-single sweep workflow. A pending scheduled run may wait behind the active
-writer, and the census cursor/enrich/sweep cursors are resumable so delayed
-runs can catch up without overlapping database writes.
+single sweep workflow. To fit the observed durations without building a queue,
+the sweep runs hourly at minute :13 UTC and census runs hourly at minute :47 UTC.
+The daily enrich job runs at 01:37 UTC, and its one-shot first run is started by
+`ENRICH_NOW.json` after the initial sweep. A pending scheduled run may wait
+behind the active writer; all three cursors are resumable so delayed runs can
+catch up without overlapping database writes.
 
 ## Cutover lock
 
