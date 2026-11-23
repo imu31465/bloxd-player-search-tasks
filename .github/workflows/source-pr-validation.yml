@@ -220,6 +220,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      # Post-merge validation for every accepted Altare main change. This
+      # specifically covers the parallel pg_trgm reader path merged on
+      # 2026-11-23; keep the real PostgreSQL integration suite mandatory.
       - name: Clone the private Altare main branch
         id: altare
         shell: bash
