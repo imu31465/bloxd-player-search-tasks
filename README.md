@@ -120,8 +120,25 @@ new sharded writers concurrently during the migration/cutover window.
 - Direct source/target SQL checks confirmed exact player, snapshot, and meta totals; all 64 bucket counts match the expected shard placement, snapshot orphan count is zero, and target sequences/indexes are valid.
 - Altare PR #1 was merged to `main` at `caa16600106e3d7a4d851a8219d346eefacd251b` and deployed to Vercel Production. The production `/health` endpoint returned `200` with four healthy shards; `/login` returned `200`.
 - Cloudflare Worker `bloxd-player-search-gateway` was updated to forward to `bloxd-player-search-altare.vercel.app`. Cloudflare reports the new version deployed at 100% traffic and the `ORIGIN_SECRET` binding remains present.
-- **Security blocker:** Altare Production currently has `ALTARE=1`; `app.py` uses that flag to bypass `OriginSecretMiddleware`, so the Vercel origin is not restricted to requests carrying the Cloudflare secret. The Worker sends `X-Origin-Verify`, but Altare does not currently enforce it. Do not treat the gateway cutover as fully secured until a shared `ORIGIN_SECRET` is installed on both sides and a fresh Production deployment proves direct-origin requests return 403 while Worker requests succeed.
+- Altare Production now uses `ALTARE=0` and a shared encrypted `ORIGIN_SECRET` with Cloudflare. A fresh Production redeploy is READY; direct requests to the Vercel `/health` and `/login` origins both return `403 Forbidden`. Cloudflare Worker secret version 5 is deployed at 100% traffic. The public Worker HTTP path still needs an external smoke check because the planner runtime cannot reach `workers.dev`.
 - The scheduled-runner workflow gate `PLAYER_SEARCH_SHARD_CUTOVER=ready` must remain unset until the public Worker route and authenticated read/write smoke tests have been verified. Do not start old and new writers concurrently.
-- The source project `little-dew-38530794` has exhausted its November monthly storage allowance. Its production branch is retained as a rollback source; redundant backup branches must not be deleted without an explicit retention decision.
+- The source project `little-dew-38530794` exhausted its November monthly storage allowance. The user approved removing all eight backup/test branches; the cleanup is verified and only the `production` branch remains (`ready`). The historical monthly allowance may remain exhausted until its December 1 reset. The original production branch and source data remain intact.
 
-The validation workflow now checks the merged Altare `main` branch rather than the obsolete topic branch. Updating this workflow triggers a fresh validation run against current source `main`, source `runner`, Altare `main`, disposable PostgreSQL migration tests, and the four target Neon connection/grant checks.
+The validation workflow now checks merged source `main`, source `runner`, and Altare `main`, rather than obsolete topic branches. The workflow-file update was committed as `6577a35f55a62d42aba0f47645cf332dee81a90d` and triggers the public-runner validation workflow. Its post-update run result has not yet been independently retrieved.
+
+### Latest verified production state
+
+| Area | Verified state |
+|---|---|
+| Source PR #5 / #6 | Both merged; source main and runner production builds are READY |
+| Altare PR #1 | Merged; main commit `caa16600106e3d7a4d851a8219d346eefacd251b` |
+| Altare Vercel | Production redeploy `dpl_AR8RABHLATDd6cQsZe9Cin3xUxeb` READY |
+| Altare origin guard | `ALTARE=0`; shared ORIGIN_SECRET configured in Vercel and Cloudflare; direct Vercel /health and /login return 403 |
+| Cloudflare gateway | Routes to Altare; latest secret-backed version receives 100% traffic |
+| Source live refresh | Old Vercel Production has `BLOXD_PROFILE_LIVE_REFRESH_ENABLED=0`; source main deployment is READY at `ab3b94e25250d03ad95d5351744c22374a8dffe4` |
+| Neon source cleanup | Eight user-approved backup branches deleted; source production branch only, state ready |
+| Scheduled workflows | New public workflows remain gated; `PLAYER_SEARCH_SHARD_CUTOVER` is still unset |
+
+**Remaining external smoke checks before enabling the schedule gate:** open the public gateway health URL (`https://ltfahel1733.workers.dev/health`) from a normal browser and verify it returns `{"status":"ok","shards":4}`; then sign in through the gateway and verify a real player search and representative read-only pages. The planner runtime cannot itself access `workers.dev` due outbound host restrictions, and the authenticated application password is not available to the planner. Do not send the password in chat.
+
+The source production branch is still retained as a rollback copy. Do not enable the scheduled writer gate or retire the old service until the gateway and authenticated application checks pass.
