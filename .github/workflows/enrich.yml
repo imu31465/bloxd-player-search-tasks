@@ -24,7 +24,7 @@ on:
         default: ""
 
 concurrency:
-  group: enrich
+  group: player-search-writers
   cancel-in-progress: false
 
 permissions:
