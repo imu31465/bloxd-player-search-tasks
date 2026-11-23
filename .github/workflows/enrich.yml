@@ -54,7 +54,7 @@ jobs:
     needs: cutover-gate
     if: ${{ needs.cutover-gate.outputs.enabled == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - name: Clone task sources (read-only deploy key)
         env:
@@ -112,7 +112,12 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         working-directory: src
         run: |
-          ARGS=(--limit 25000)
+          # The previous 25k / 20-worker batch produced 22,521 probe
+          # 429s in its first wave and still had 9,345 unresolved after
+          # three retries. Keep the probe rate serial and the batch bounded;
+          # the fixed cursor now resumes at the first unresolved ID.
+          ARGS=(--limit 10000 --probe-workers 1 --probe-retry-rounds 3 \
+                --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400)
           # Manual dispatch: optionally force-fetch specific player ids.
           # The value is passed through the environment, then validated as a
           # whole before being used as one CLI argument.
