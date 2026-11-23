@@ -19,7 +19,7 @@ on:
 # four independent runners. Each writes its disjoint shard to Neon; only the
 # finalizer advances the shared cursor. Never overlap census plans.
 concurrency:
-  group: census
+  group: player-search-writers
   cancel-in-progress: false
 
 permissions:
