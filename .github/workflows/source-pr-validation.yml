@@ -493,3 +493,19 @@ jobs:
             puts "YAML syntax OK: #{path}"
           end
           RUBY
+
+      - name: Validate the tracked writer cutover switch schema
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          state = json.loads(Path("CUTOVER.json").read_text(encoding="utf-8"))
+          if not isinstance(state, dict) or type(state.get("enabled")) is not bool:
+              raise SystemExit("CUTOVER.json must be a JSON object with boolean enabled")
+          if not isinstance(state.get("altare_production_commit"), str) or len(state["altare_production_commit"]) != 40:
+              raise SystemExit("CUTOVER.json has no valid Altare production commit")
+          if not isinstance(state.get("validation_run_id"), int):
+              raise SystemExit("CUTOVER.json has no validation run id")
+          print(f"CUTOVER.json schema OK; writer gate enabled={state['enabled']}")
+          PY
