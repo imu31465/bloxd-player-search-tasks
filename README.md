@@ -141,9 +141,7 @@ The validation workflow now checks merged source `main`, source `runner`, and Al
 | Neon source cleanup | Eight user-approved backup branches deleted; source production branch only, state ready |
 | Scheduled workflows | New public workflows remain gated by `CUTOVER.json` (`enabled: false`) |
 
-**Remaining external smoke checks before enabling the schedule gate:** open the public gateway health URL (`https://ltfahel1733.workers.dev/health`) from a normal browser and verify it returns `{"status":"ok","shards":4}`; then sign in through the gateway and verify a real player search and representative read-only pages. The planner runtime cannot itself access `workers.dev` due outbound host restrictions, and the authenticated application password is not available to the planner. Do not send the password in chat.
-
-The source production branch is still retained as a rollback copy. Do not enable the scheduled writer gate or retire the old service until the gateway and authenticated application checks pass.
+**Completed 2026-11-23:** public gateway health reported all four shards, login returned HTTP 200, and the user verified authenticated search, a populated history profile, list sorting, page 2, changes feed, and CSV export. Production logs show HTTP 200 for the requested pages and CSV route. The source production branch remains intact as the rollback copy.
 
 
 ## Availability monitoring — 2026-11-23
@@ -153,7 +151,7 @@ The public Worker route was externally checked by run #16:
 - `/login` returned HTTP 200 with an HTML page.
 - The same run passed the Altare PostgreSQL migration integration suite, source `main` writer tests, source `runner` writer tests, and all four Neon target connection/grant checks.
 
-A 15-minute, read-only availability workflow now repeats the public `/health` and `/login` checks. It sends Discord only on failure and does not write to Neon. The production writer gate remains closed until the user's authenticated sign-in and representative search/profile/history/list/CSV checks have passed. This keeps the public read service available while avoiding unattended writes before the final authenticated acceptance check.
+A 15-minute, read-only availability workflow repeats the public `/health` and `/login` checks. It sends Discord only on failure and does not write to Neon. The authenticated acceptance checks were completed on 2026-11-23; Run #21 and Run #22 also revalidated the production gateway and writer prerequisites. The current cutover switch is tracked in `CUTOVER.json`.
 
 Latest run: https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45107111404
 ## Latest acceptance and performance verification — 2026-11-23
@@ -163,4 +161,5 @@ Latest run: https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/4
 - Read-only `EXPLAIN (ANALYZE, BUFFERS)` comparisons on all four production shards confirmed the new SQL returned exactly the same ordered player IDs/names as the old SQL for current-name and former-name samples. The old query scanned roughly 718k player rows per shard and took 529–618 ms per shard; the new UNION plan used the trigram GIN index (6 ms warm on shard-03; 40–74 ms in colder-cache runs).
 - Public-runner verification Run #21 succeeded: [run #21](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45178124440). It validated Altare `main` at the deployed SHA, passed all 42 Altare tests, ran the real PostgreSQL migration integration test without skipping, passed source `main` (37 tests + disposable four-shard writer integration), source `runner` (23 tests + disposable four-shard writer integration), verified all four Neon connection/app-role grants, checked the production gateway health/login, linted all workflows, and derived/mint-validated the current Bloxd token without logging its value.
 - Source heads tested by Run #21: `main` `ab3b94e25250d03ad95d5351744c22374a8dffe4`; `runner` `dd8d723392be429b88d38aff45b98f587fcb27c1`. Altare deployed/tested head: `f9dc395e22c268f739297ff8c591f705c6a0a504`.
-- `CUTOVER.json` is currently `enabled: false`. After the fail-closed gate conversion is validated, setting it to true will start the initial census and sweep; enrich will resume on its daily schedule. Keep the original source database intact for rollback.
+- Run #22 also passed after the tracked-gate conversion: [run #22](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45179000969). It validated the `CUTOVER.json` schema and all four updated writer workflow YAML files, reran the full Altare/PostgreSQL/source checks, and re-minted the current Bloxd token without logging its value.
+- `CUTOVER.json` is still `enabled: false` in this commit. The final enable commit will start the initial census and sweep; enrich will resume on its daily schedule. Keep the original source database intact for rollback.
