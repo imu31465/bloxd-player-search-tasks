@@ -1,11 +1,11 @@
 {
-  "purpose": "retry-five-worker-enrichment-after-lazy-fetch-auth-fix",
-  "created_at": "2026-11-23T22:08:09.230Z",
+  "purpose": "retry-five-worker-enrichment-after-64-bucket-map-fix",
+  "created_at": "2026-11-24T00:10:00Z",
   "writer_cutover_enabled": true,
   "initial_census_run_id": 45179485652,
   "initial_sweep_run_id": 45179485667,
   "enrichment_runner_commit": "a2f3acd4770696a93f328e3ae2dbe743349722ac",
   "cursor_fix_pr": 7,
-  "validation_run_id": 45276393947,
-  "note": "Retry five-worker profile enrichment after fixing the partial-clone deploy-key lifetime. Run #8 failed all five workers before any profile fetch because the SSH deploy key was removed before git sparse-checkout fetched lazy blobs. Workflow commit 5bc105cbbff239c1334d77dab4956daef20711fd keeps the key until sparse checkout completes; validation Run #42 passed all seven jobs. Five disjoint id%5 workers use pinned runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac and independent cursors census_enrich_cursor_0..4 seeded from legacy 242336. Inspect every worker log, all five cursor values, and four-shard integrity before acceptance."
+  "validation_run_id": 45276953466,
+  "note": "Retry five-worker profile enrichment after Run #9's five workers all stopped before profile fetch because SHARD_BUCKET_MAP had 63 entries (shard-04 had 15). Workflow commit 536b7c6d0e017bbd22fcce6ab7626900c53b58dd copies the proven sweep.yml 64-entry map (16 buckets per shard) and validates all four shard URL/project maps before DB access. Validation Run #43 passed 7/7 jobs. All workers use pinned private runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac and independent cursors census_enrich_cursor_0..4 seeded from legacy 242336. Require the storage-map validation log in every worker, all five enrich summaries, cursor checks, and four-shard integrity before acceptance."
 }
