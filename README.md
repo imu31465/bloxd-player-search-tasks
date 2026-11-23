@@ -197,4 +197,8 @@ The old implementation rewound the entire probe batch after a severe 429 storm a
 
 **Enrichment request rate was also reduced:** the scheduled workflow now probes at most 10,000 IDs per run with one probe worker, three retry rounds with 120-second initial wait, a 400-profile social-fetch cap, and a 50-minute job timeout. The daily schedule remains in place; it is not an hourly social-API poll.
 
-Latest direct read-only Neon totals after census, sweep, and the first enrich run: **2,902,783 players, 243,160 snapshots, 0 orphan snapshots** across all four shards. Keep the source production database intact for rollback.
+Latest direct read-only Neon totals after census, sweep, and the first enrich run: **2,902,783 players, 243,160 snapshots, 0 orphan snapshots** across all four shards.
+
+The corrected one-shot rerun is [enrich Run #4 / 45210011080](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45210011080). At the latest check, its cutover gate, source clone, dependency installation, and live-token validation had succeeded; the `Drip refresh` step was still in progress. The control-DB enrichment cursor was still `238032` and no new `bloxd_fetch_*` journal rows had appeared yet, so this rerun is **not yet accepted as complete**. Wait for its final log summary, then reconcile the cursor, journal, and four-shard snapshot totals before declaring recovery complete.
+
+Keep the source production database intact for rollback.
