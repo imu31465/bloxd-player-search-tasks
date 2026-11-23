@@ -24,41 +24,37 @@ the read-only `DEPLOY_KEY` repository secret.
 
 ## Cutover lock
 
-All production jobs require the repository variable
-`PLAYER_SEARCH_SHARD_CUTOVER=ready`. If it is missing or has any other value,
-jobs are skipped. The validation workflow is independent of this gate. This keeps
-production schedules inert while the Neon migration, writer branch, and Altare
-reader are being verified.
+Production writers use the tracked root file `CUTOVER.json` as a fail-closed
+switch. Every writer workflow reads it before starting any work:
+- `enabled: false` or an invalid/missing file means **no writer jobs run**.
+- `enabled: true` allows the scheduled/manual jobs to run.
+- A commit changing only `CUTOVER.json` starts one initial census and sweep;
+  enrich remains on its daily schedule to avoid an unnecessary extra social-API
+  burst at activation.
 
-**Do not set this variable until all of the following are true:**
+This replaces the former `PLAYER_SEARCH_SHARD_CUTOVER` repository variable,
+so the switch and every transition are version-controlled and reviewable.
+
+**Keep `enabled: false` until all of the following are true:**
 
 1. The shard-aware writer changes are merged into the private source
-   repository's `runner` branch and its exact-head tests pass.
-2. The source-to-shard migration has completed and reported
-   `VERIFICATION PASSED`, including all 64 bucket checks and total row counts.
-3. The shard-aware Altare reader is deployed and its ID/name/former-name search,
-   profiles/history, lists, sorting, pagination, CSV, changes, and health checks
-   pass against all four shards.
-4. The four repository secrets below are configured with the intended
-   four distinct Neon projects. The non-secret project/bucket maps are pinned
-   in the workflow files.
+   repository's `runner` branch and their exact-head unit and PostgreSQL tests pass.
+2. The source-to-shard migration has completed and its manifest reports
+   `verified`, including all 64 bucket checks and exact source/target totals.
+3. The Altare reader is deployed and authenticated search, profiles/history,
+   lists, sorting, pagination, CSV, changes, and health checks pass against all
+   four shards.
+4. The current Bloxd session token has been derived and mint-validated.
+5. The four repository secrets below point to the intended four distinct Neon
+   projects, and the four-shard read/write integration tests pass.
 
-The schedules are present but the gate prevents them from running jobs until
-the cutover is explicitly enabled.
+To pause future writer starts, change `enabled` back to `false` in
+`CUTOVER.json`. A run that has already started is not cancelled by changing
+the switch; cancel an active run separately if an immediate stop is required.
 
-## Repository variable
-
-Open **Settings → Secrets and variables → Actions → Variables** and add only:
-
-| Name | Value |
-|---|---|
-| `PLAYER_SEARCH_SHARD_CUTOVER` | Leave unset until every cutover condition above is verified; then set to `ready` |
-
-The non-secret `SHARD_PROJECT_IDS` map is pinned directly in all four workflow
-files so this repository does not need a manually configured copy. The map
-must be kept in sync with the four project URLs in the secrets and with the
-local migration/Altare environment. The application rejects duplicate IDs,
-including different branch endpoints that belong to one Neon project.
+The non-secret `SHARD_PROJECT_IDS` and 64-entry bucket map remain pinned in the
+workflow files. Keep them synchronized with the four secret URLs and the
+Altare/Neon environment; duplicate physical projects are rejected.
 
 ## Optional private Altare validation secret
 
@@ -98,12 +94,12 @@ real credentials):
 
 ## Activation after cutover
 
-After the checks above pass, set the repository variable
-`PLAYER_SEARCH_SHARD_CUTOVER` to `ready`. Then verify one manual run of each
-workflow before retiring the corresponding Player Search schedules from
-`scheduled-tasks`. Keep the old schedules until the new repository has
-successfully run against the migrated data; never run old single-database and
-new sharded writers concurrently during the migration/cutover window.
+After the checks above pass, set `enabled: true` in `CUTOVER.json` and commit
+the change. That commit starts the initial census and sweep workflows. Confirm
+both runs reach their expected completion states, then let the daily enrich
+schedule resume. Keep the old single-database schedules disabled; never run old
+and new writers concurrently. Keep the old database intact for rollback until
+the new schedules have completed several clean cycles.
 
 ## Boundaries
 
@@ -122,7 +118,7 @@ new sharded writers concurrently during the migration/cutover window.
 - Altare PR #1 was merged to `main` at `caa16600106e3d7a4d851a8219d346eefacd251b` and deployed to Vercel Production. Before origin authentication was enabled, `/health` returned `200` with four healthy shards and `/login` returned `200`. After the security guard was enabled, direct Vercel origin requests correctly returned `403`; the Worker-routed health/login flow still needs external verification.
 - Cloudflare Worker `bloxd-player-search-gateway` was updated to forward to `bloxd-player-search-altare.vercel.app`. Cloudflare reports the new version deployed at 100% traffic and the `ORIGIN_SECRET` binding remains present.
 - Altare Production now uses `ALTARE=0` and a shared encrypted `ORIGIN_SECRET` with Cloudflare. A fresh Production redeploy is READY; direct requests to the Vercel `/health` and `/login` origins both return `403 Forbidden`. Cloudflare Worker secret version 5 is deployed at 100% traffic. The public Worker HTTP path still needs an external smoke check because the planner runtime cannot reach `workers.dev`.
-- The scheduled-runner workflow gate `PLAYER_SEARCH_SHARD_CUTOVER=ready` must remain unset until the public Worker route and authenticated read/write smoke tests have been verified. Do not start old and new writers concurrently.
+- The tracked `CUTOVER.json` switch remains `enabled: false` until public gateway, authenticated reads, CSV, live token, and four-shard writer checks all pass. Do not start old and new writers concurrently.
 - The source project `little-dew-38530794` exhausted its November monthly storage allowance. The user approved removing all eight backup/test branches; the cleanup is verified and only the `production` branch remains (`ready`). The historical monthly allowance may remain exhausted until its December 1 reset. The original production branch and source data remain intact.
 
 The validation workflow now checks merged source `main`, source `runner`, and Altare `main`, rather than obsolete topic branches. Run #14 (`45098137398`) succeeded on all four jobs. Its logs exposed a harmless shell-summary quoting defect, fixed in workflow commit `ebd25697767fe03b40dcfebf0658f2ee976bfd11`. The corrected run #15 (`45101519214`) succeeded on all four jobs and confirmed the exact branch heads and all required PostgreSQL integration tests:
@@ -143,7 +139,7 @@ The validation workflow now checks merged source `main`, source `runner`, and Al
 | Cloudflare gateway | Routes to Altare; latest secret-backed version receives 100% traffic |
 | Source live refresh | Old Vercel Production has `BLOXD_PROFILE_LIVE_REFRESH_ENABLED=0`; source main deployment is READY at `ab3b94e25250d03ad95d5351744c22374a8dffe4` |
 | Neon source cleanup | Eight user-approved backup branches deleted; source production branch only, state ready |
-| Scheduled workflows | New public workflows remain gated; `PLAYER_SEARCH_SHARD_CUTOVER` is still unset |
+| Scheduled workflows | New public workflows remain gated by `CUTOVER.json` (`enabled: false`) |
 
 **Remaining external smoke checks before enabling the schedule gate:** open the public gateway health URL (`https://ltfahel1733.workers.dev/health`) from a normal browser and verify it returns `{"status":"ok","shards":4}`; then sign in through the gateway and verify a real player search and representative read-only pages. The planner runtime cannot itself access `workers.dev` due outbound host restrictions, and the authenticated application password is not available to the planner. Do not send the password in chat.
 
@@ -160,3 +156,11 @@ The public Worker route was externally checked by run #16:
 A 15-minute, read-only availability workflow now repeats the public `/health` and `/login` checks. It sends Discord only on failure and does not write to Neon. The production writer gate remains closed until the user's authenticated sign-in and representative search/profile/history/list/CSV checks have passed. This keeps the public read service available while avoiding unattended writes before the final authenticated acceptance check.
 
 Latest run: https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45107111404
+## Latest acceptance and performance verification — 2026-11-23
+
+- The user confirmed authenticated browser acceptance for history, list sorting, page 2, changes feed, and CSV. Production runtime logs show each request returned HTTP 200.
+- Altare search optimization PR #2 merged to `main` at `f9dc395e22c268f739297ff8c591f705c6a0a504` and was deployed to Vercel Production as READY. The search path now uses a UNION of current/former-name candidate IDs so PostgreSQL can use the existing trigram GIN index, and runs the four shard queries concurrently.
+- Read-only `EXPLAIN (ANALYZE, BUFFERS)` comparisons on all four production shards confirmed the new SQL returned exactly the same ordered player IDs/names as the old SQL for current-name and former-name samples. The old query scanned roughly 718k player rows per shard and took 529–618 ms per shard; the new UNION plan used the trigram GIN index (6 ms warm on shard-03; 40–74 ms in colder-cache runs).
+- Public-runner verification Run #21 succeeded: [run #21](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45178124440). It validated Altare `main` at the deployed SHA, passed all 42 Altare tests, ran the real PostgreSQL migration integration test without skipping, passed source `main` (37 tests + disposable four-shard writer integration), source `runner` (23 tests + disposable four-shard writer integration), verified all four Neon connection/app-role grants, checked the production gateway health/login, linted all workflows, and derived/mint-validated the current Bloxd token without logging its value.
+- Source heads tested by Run #21: `main` `ab3b94e25250d03ad95d5351744c22374a8dffe4`; `runner` `dd8d723392be429b88d38aff45b98f587fcb27c1`. Altare deployed/tested head: `f9dc395e22c268f739297ff8c591f705c6a0a504`.
+- `CUTOVER.json` is currently `enabled: false`. After the fail-closed gate conversion is validated, setting it to true will start the initial census and sweep; enrich will resume on its daily schedule. Keep the original source database intact for rollback.
