@@ -14,7 +14,7 @@ source and player data are not copied here.
 |---|---|---|
 | `census.yml` | Every 30 minutes + manual | Four parallel ID-range workers; shared moving frontier |
 | `sweep.yml` | Every 30 minutes + manual | Five concurrent social-profile sweep workers |
-| `enrich.yml` | Daily + manual | Profile enrichment drip / selected IDs |
+| `enrich.yml` | Daily + manual + `ENRICH_NOW.json` commit | Profile enrichment drip / selected IDs; the tracked file gives a one-shot initial run after the first sweep finishes |
 | `name-scan.yml` | Manual | Four-character name availability scan |
 | `source-pr-validation.yml` | Manual + workflow-file update | Test merged source `main`/`runner` and merged Altare `main`, run PostgreSQL integration suites on disposable services, verify runner secrets with read-only Neon SELECTs, and lint workflow YAML |
 | `production-availability.yml` | Every 15 minutes + manual + monitor-file update | Check the public gateway, all four Neon shards, and the login page; send Discord alert only when a check fails |
@@ -30,7 +30,9 @@ switch. Every writer workflow reads it before starting any work:
 - `enabled: true` allows the scheduled/manual jobs to run.
 - A commit changing only `CUTOVER.json` starts one initial census and sweep;
   enrich remains on its daily schedule to avoid an unnecessary extra social-API
-  burst at activation.
+  burst at activation. After the first sweep run finishes, commit a one-shot
+  `ENRICH_NOW.json` file to start the initial enrichment run without waiting
+  for the next daily cron.
 
 This replaces the former `PLAYER_SEARCH_SHARD_CUTOVER` repository variable,
 so the switch and every transition are version-controlled and reviewable.
@@ -96,8 +98,9 @@ real credentials):
 
 After the checks above pass, set `enabled: true` in `CUTOVER.json` and commit
 the change. That commit starts the initial census and sweep workflows. Confirm
-both runs reach their expected completion states, then let the daily enrich
-schedule resume. Keep the old single-database schedules disabled; never run old
+both runs reach their expected completion states, then let the daily enrich schedule resume. The first enrich can be triggered by adding
+`ENRICH_NOW.json` after the initial sweep has completed. Keep the old
+single-database schedules disabled; never run old
 and new writers concurrently. Keep the old database intact for rollback until
 the new schedules have completed several clean cycles.
 
