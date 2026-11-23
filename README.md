@@ -16,7 +16,8 @@ source and player data are not copied here.
 | `sweep.yml` | Every 30 minutes + manual | Five concurrent social-profile sweep workers |
 | `enrich.yml` | Daily + manual | Profile enrichment drip / selected IDs |
 | `name-scan.yml` | Manual | Four-character name availability scan |
-| `source-pr-validation.yml` | Manual + workflow-file update | Test merged source `main`/`runner` and merged Altare `main`, run PostgreSQL integration suites on disposable services, and verify runner secrets with read-only Neon SELECTs |
+| `source-pr-validation.yml` | Manual + workflow-file update | Test merged source `main`/`runner` and merged Altare `main`, run PostgreSQL integration suites on disposable services, verify runner secrets with read-only Neon SELECTs, and lint workflow YAML |
+| `production-availability.yml` | Every 15 minutes + manual + monitor-file update | Check the public gateway, all four Neon shards, and the login page; send Discord alert only when a check fails |
 
 Each workflow checks out the private source repository's `runner` branch using
 the read-only `DEPLOY_KEY` repository secret.
@@ -147,3 +148,15 @@ The validation workflow now checks merged source `main`, source `runner`, and Al
 **Remaining external smoke checks before enabling the schedule gate:** open the public gateway health URL (`https://ltfahel1733.workers.dev/health`) from a normal browser and verify it returns `{"status":"ok","shards":4}`; then sign in through the gateway and verify a real player search and representative read-only pages. The planner runtime cannot itself access `workers.dev` due outbound host restrictions, and the authenticated application password is not available to the planner. Do not send the password in chat.
 
 The source production branch is still retained as a rollback copy. Do not enable the scheduled writer gate or retire the old service until the gateway and authenticated application checks pass.
+
+
+## Availability monitoring — 2026-11-23
+
+The public Worker route was externally checked by run #16:
+- `/health` returned `{"status":"ok","shards":4}`; the endpoint opens a database session to each configured shard.
+- `/login` returned HTTP 200 with an HTML page.
+- The same run passed the Altare PostgreSQL migration integration suite, source `main` writer tests, source `runner` writer tests, and all four Neon target connection/grant checks.
+
+A 15-minute, read-only availability workflow now repeats the public `/health` and `/login` checks. It sends Discord only on failure and does not write to Neon. The production writer gate remains closed until the user's authenticated sign-in and representative search/profile/history/list/CSV checks have passed. This keeps the public read service available while avoiding unattended writes before the final authenticated acceptance check.
+
+Latest run: https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45107111404
