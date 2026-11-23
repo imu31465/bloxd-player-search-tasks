@@ -199,6 +199,20 @@ The old implementation rewound the entire probe batch after a severe 429 storm a
 
 Latest direct read-only Neon totals after census, sweep, and the first enrich run: **2,902,783 players, 243,160 snapshots, 0 orphan snapshots** across all four shards.
 
-The corrected one-shot rerun is [enrich Run #4 / 45210011080](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45210011080). At the latest check, its cutover gate, source clone, dependency installation, and live-token validation had succeeded; the `Drip refresh` step was still in progress. The control-DB enrichment cursor was still `238032` and no new `bloxd_fetch_*` journal rows had appeared yet, so this rerun is **not yet accepted as complete**. Wait for its final log summary, then reconcile the cursor, journal, and four-shard snapshot totals before declaring recovery complete.
+The corrected one-shot rerun [enrich Run #4 / 45210011080](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45210011080) finished with a green Actions job conclusion, but the source log explicitly says it **ABORTED at the 400-fetch cap**: 400 fetched, 367 changed (name 53 / colour 363 / cosmetics 363 / games 27), 369 refreshed, 367 snapshots, 17 gone, 0 fetch errors, 5,005 skipped, and 4,578 pending. The persisted cursor advanced from `238032` to `242336`; this is resumable progress, not full completion.
+
+Direct read-only checks after Run #4: 2,902,783 players, 243,527 snapshots across four shards, and 0 orphan snapshots.
 
 Keep the source production database intact for rollback.
+
+
+## Five-way enrichment resumption — 2026-11-24
+
+The 400-profile per-run limit was still too restrictive when applied to one global cursor: Run #4 spent 1,597 seconds probing 10,000 IDs and left 4,578 candidates for the next run. The scheduler now has a five-worker design, matching the already-proven five-worker social sweep:
+
+- Player IDs are partitioned by `id % 5`; each worker reads and writes only its own partition.
+- Each worker uses a separate control cursor, `census_enrich_cursor_0` through `census_enrich_cursor_4`. On the first sharded run, missing worker cursors inherit the previous global cursor `census_enrich_cursor` (`242336`), then advance independently.
+- All five jobs pin the same private `runner` source SHA. Each has the existing 10,000-row probe limit, one probe thread, bounded 429 retries, 400 social-fetch cap, and 50-minute timeout. Maximum combined social fetch capacity is 2,000 profiles per scheduled run, subject to each partition's eligible candidates.
+- Manual `force_ids` dispatch runs only on worker 0 to prevent duplicate forced fetches.
+
+Implementation: private runner branch head `0c0b0d2e723c838926b0d929f54600755126635c`; task workflow commit `908279332b07072100f1c8943d955ece900bf366`. Public validation Run #40 (`45275348602`) was queued at the latest check. **Do not accept the parallel rollout until Run #40 passes and a live five-worker run confirms all five independent cursors and shard totals.**
