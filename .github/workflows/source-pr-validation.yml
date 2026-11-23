@@ -236,14 +236,14 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-          git clone --depth 1 --single-branch --branch feature/neon-free-sharding \
+          git clone --depth 1 --single-branch --branch main \
             git@github.com:imu31465/bloxd-player-search-altare.git altare
 
           ALTARE_SHA="$(git -C altare rev-parse HEAD)"
           rm -f ~/.ssh/id_ed25519
           unset ALTARE_DEPLOY_KEY
           echo "altare_sha=$ALTARE_SHA" >> "$GITHUB_OUTPUT"
-          echo "Validated Altare branch: feature/neon-free-sharding"
+          echo "Validated Altare branch: main"
           echo "Validated Altare SHA: $ALTARE_SHA"
 
       - name: Record exact Altare head
