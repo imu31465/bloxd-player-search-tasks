@@ -17,6 +17,10 @@ on:
         required: false
         default: "25"
 
+concurrency:
+  group: player-search-writers
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
