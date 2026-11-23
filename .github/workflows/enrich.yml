@@ -65,10 +65,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
-          printf '%s\\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
-          git clone --depth 1 --branch runner --filter=blob:none --sparse \\
+          git clone --depth 1 --branch runner --filter=blob:none --sparse \
             git@github.com:imu31465/bloxd-player-search.git src
           SOURCE_SHA="$(git -C src rev-parse HEAD)"
           rm -f ~/.ssh/id_ed25519
@@ -95,10 +95,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
-          printf '%s\\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
-          git clone --depth 1 --branch runner --filter=blob:none --sparse \\
+          git clone --depth 1 --branch runner --filter=blob:none --sparse \
             git@github.com:imu31465/bloxd-player-search.git src
           git -C src fetch --depth 1 origin "$SOURCE_SHA"
           git -C src checkout --detach "$SOURCE_SHA"
@@ -148,8 +148,8 @@ jobs:
         run: |
           # Five independent modulo partitions use isolated cursor keys and
           # runner IPs; this mirrors the already-proven 5-worker social sweep.
-          ARGS=(--limit 10000 --probe-workers 1 --probe-retry-rounds 3 \\
-                --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400 \\
+          ARGS=(--limit 10000 --probe-workers 1 --probe-retry-rounds 3 \
+                --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400 \
                 --shard "${{ matrix.shard }}/5")
           if [ -n "$FORCE_IDS_INPUT" ]; then
             if [[ ! "$FORCE_IDS_INPUT" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
@@ -168,8 +168,8 @@ jobs:
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then exit 0; fi
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \\
-            -H "Content-Type: application/json" \\
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
             -d '{
               "embeds": [{
                 "title": "❌ enrich shard ${{ matrix.shard }} failed",
@@ -181,5 +181,5 @@ jobs:
                 ],
                 "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
               }]
-            }' \\
+            }' \
             > /dev/null
