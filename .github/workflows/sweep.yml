@@ -2,8 +2,8 @@ name: sweep
 
 on:
   schedule:
-    # Every 30 minutes; each run drives five parallel shards (each on its own
-    # runner IP) for ~25 minutes, so the fleet runs near-continuously.
+    # Hourly at :13 UTC; each run drives five parallel shards (each on its own
+    # runner IP). The shared writer lock leaves the :47 census slot free.
     - cron: "13 * * * *"
   push:
     branches:
