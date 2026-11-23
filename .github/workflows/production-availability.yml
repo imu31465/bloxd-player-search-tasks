@@ -1,0 +1,96 @@
+name: production availability
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-availability
+  cancel-in-progress: false
+
+jobs:
+  check-gateway:
+    name: Check public gateway and all four shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check health endpoint and every shard
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://bloxd-player-search-gateway.ltfahel1733.workers.dev"
+          curl --fail --silent --show-error \
+            --retry 2 --retry-all-errors --retry-delay 3 \
+            --connect-timeout 10 --max-time 35 \
+            "$BASE_URL/health" -o health.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("health.json").read_text(encoding="utf-8"))
+          if payload.get("status") != "ok" or payload.get("shards") != 4:
+              raise SystemExit(f"Production health check failed: {payload!r}")
+          print("Production gateway: healthy; all four Neon shards answered.")
+          PY
+
+      - name: Check login page
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://bloxd-player-search-gateway.ltfahel1733.workers.dev"
+          status="$(curl --silent --show-error --output login.html \
+            --write-out '%{http_code}' --connect-timeout 10 --max-time 30 \
+            "$BASE_URL/login")"
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Public login page returned HTTP $status."
+            exit 1
+          fi
+          grep -Eiq '<!doctype html|<html' login.html
+          echo "Production login page: HTTP 200."
+
+  notify-failure:
+    if: ${{ failure() }}
+    needs: [check-gateway]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Send one actionable Discord alert
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
+            echo "Discord webhook is not configured; skipping notification."
+            exit 0
+          fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          PAYLOAD="$(python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          print(json.dumps({
+              "embeds": [{
+                  "title": "Player Search production availability check failed",
+                  "description": "The public gateway or one of the four Neon shards did not pass its health check.",
+                  "color": 15158332,
+                  "fields": [
+                      {"name": "Run", "value": f"[Open Actions log]({os.environ['RUN_URL']})"}
+                  ],
+                  "timestamp": datetime.now(timezone.utc).isoformat(),
+              }]
+          }))
+          PY
+          )"
+          curl --fail --silent --show-error --max-time 15 \
+            -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" -o /dev/null
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
