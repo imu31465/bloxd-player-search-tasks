@@ -146,13 +146,30 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
           SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
-          SHARD_BUCKET_MAP: '["shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04"]'
+          SHARD_BUCKET_MAP: '["shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-01","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-02","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-03","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04","shard-04"]'
           SHARD_PROJECT_IDS: '{"shard-01":"old-haze-17838481","shard-02":"twilight-violet-22165713","shard-03":"sparkling-star-88747543","shard-04":"super-meadow-54405222"}'
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           FORCE_IDS_INPUT: ${{ inputs.force_ids }}
           PYTHONDONTWRITEBYTECODE: "1"
         working-directory: src
         run: |
+          # Validate the storage map before importing app.py or opening DB sessions.
+          python - <<'PY'
+          import collections
+          import json
+          import os
+
+          expected = {"shard-01", "shard-02", "shard-03", "shard-04"}
+          bucket_map = json.loads(os.environ["SHARD_BUCKET_MAP"])
+          counts = collections.Counter(bucket_map)
+          if len(bucket_map) != 64 or set(counts) != expected or any(counts[key] != 16 for key in expected):
+              raise SystemExit("SHARD_BUCKET_MAP must contain exactly 64 buckets, 16 per configured shard")
+          project_ids = json.loads(os.environ["SHARD_PROJECT_IDS"])
+          database_urls = json.loads(os.environ["SHARD_DATABASE_URLS"])
+          if set(project_ids) != expected or set(database_urls) != expected:
+              raise SystemExit("SHARD_PROJECT_IDS and SHARD_DATABASE_URLS must contain all four configured shards")
+          print("Storage map validated: 64 buckets, 16 per shard; all four shard configs present")
+          PY
           # Five independent modulo partitions use isolated cursor keys and
           # runner IPs; this mirrors the already-proven 5-worker social sweep.
           ARGS=(--limit 10000 --probe-workers 1 --probe-retry-rounds 3 \
