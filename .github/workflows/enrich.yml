@@ -26,8 +26,28 @@ permissions:
   contents: read
 
 jobs:
+  cutover-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.read.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read fail-closed CUTOVER.json
+        id: read
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          state = json.loads(Path("CUTOVER.json").read_text(encoding="utf-8"))
+          enabled = state.get("enabled") if isinstance(state, dict) else None
+          if not isinstance(enabled, bool):
+              raise SystemExit("CUTOVER.json must contain a boolean enabled field")
+          print("enabled=" + str(enabled).lower())
+          PY
   drip:
-    if: ${{ vars.PLAYER_SEARCH_SHARD_CUTOVER == 'ready' }}
+    needs: cutover-gate
+    if: ${{ needs.cutover-gate.outputs.enabled == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
