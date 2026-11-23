@@ -216,3 +216,14 @@ The 400-profile per-run limit was still too restrictive when applied to one glob
 - Manual `force_ids` dispatch runs only on worker 0 to prevent duplicate forced fetches.
 
 Implementation: private runner branch head `0c0b0d2e723c838926b0d929f54600755126635c`; task workflow commit `908279332b07072100f1c8943d955ece900bf366`. Public validation Run #40 (`45275348602`) and Run #41 (`45275942820`) both passed all 7 jobs. Run #41 validated private `runner` SHA `a2f3acd4770696a93f328e3ae2dbe743349722ac` (32 tests, PostgreSQL writer integration) and private `main` SHA `ab3b94e25250d03ad95d5351744c22374a8dffe4` (37 tests, PostgreSQL writer integration); Altare migration, four-shard GIN checks, secrets/Neon grants, live token, gateway, and workflow YAML all passed. Run #41 also validates the matrix-aware `step.if` correction. The live rollout is now the acceptance gate: all 5 worker logs and `census_enrich_cursor_0..4` must be checked against the four-shard database totals.
+
+
+## Five-worker live attempt #1 — 2026-11-24
+
+Task enrich Run #8 (`45276229332`) expanded all five partitions but failed before any profile fetch. Every worker cloned the partial private source and checked out the pinned SHA, then `git sparse-checkout set` needed to lazy-fetch a blob from the private promisor remote after the workflow had already deleted `~/.ssh/id_ed25519`. The log ended with `Permission denied (publickey)` / `could not fetch ... from promisor remote`. All five jobs failed at the clone step; no worker reached the DB update step.
+
+Read-only reconciliation after Run #8: players `2,902,783`, snapshots `243,527`, orphan snapshots `0`; legacy cursor remains `242336`; none of `census_enrich_cursor_0..4` exists, confirming no shard wrote progress.
+
+Fix: task workflow commit `5bc105cbbff239c1334d77dab4956daef20711fd` keeps the deploy key until after `sparse-checkout set` completes, then removes it. Validation Run #42 (`45276393947`) passed all 7 jobs: runner SHA `a2f3acd4770696a93f328e3ae2dbe743349722ac` (32 unit/SQLite tests + PostgreSQL writer integration), main SHA `ab3b94e25250d03ad95d5351744c22374a8dffe4` (37 unit/SQLite tests + PostgreSQL writer integration), Altare migration/four-shard GIN checks, live token, Neon grants, gateway and workflow YAML. The key-order fix is validated syntactically and will be exercised by the next live run.
+
+The next one-shot retry uses the same five pinned disjoint partitions. Accept only after all five logs show the enrichment script ran and the five cursor keys plus four-shard integrity have been independently verified.
