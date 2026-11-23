@@ -241,3 +241,10 @@ Correction in task workflow commit `536b7c6d0e017bbd22fcce6ab7626900c53b58dd`:
 Post-Run #9 read-only DB reconciliation: players `2,902,783`, snapshots `243,527`, orphan snapshots `0`; legacy cursor `242336`; no `census_enrich_cursor_0..4` keys. Therefore Run #9 did not update production rows or create shard cursors.
 
 Next attempt must print `Storage map validated: 64 buckets, 16 per shard; all four shard configs present` in every worker log before the script starts. Only accept after all five fetch summaries and cursor keys are reconciled.
+
+
+## Five-worker live attempt #3 — Run #10 in progress
+
+Task enrich Run #10 (`45277205885`) started after the 64-bucket correction. Fail-closed cutover gate and common-source `prepare` both succeeded; the pinned private runner SHA is `a2f3acd4770696a93f328e3ae2dbe743349722ac`. All five matrix workers completed private sparse clone, Python setup, dependency installation, and live SP-token resolution; all five `Drip refresh partition i/5` steps are now running. Since each step passed the pre-DB storage-map guard before reaching its running state, the earlier 63-entry map error is not recurring.
+
+At the latest check, no new per-worker cursor keys or snapshot count changes were yet visible in read-only Neon queries; this is an in-progress A-wave, not a completion. Wait for all five per-worker summaries before accepting, then reconcile cursor 0..4 and all four database totals.
