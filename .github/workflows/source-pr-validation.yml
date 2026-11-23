@@ -12,6 +12,7 @@ on:
       - ".github/workflows/sweep.yml"
       - ".github/workflows/enrich.yml"
       - ".github/workflows/name-scan.yml"
+      - ".github/workflows/notification-smoke.yml"
       - "CUTOVER.json"
 
 permissions:
