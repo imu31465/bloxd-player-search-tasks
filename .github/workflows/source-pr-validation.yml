@@ -305,8 +305,8 @@ jobs:
           DATABASE_URL: "postgresql+psycopg://postgres:postgres@127.0.0.1:5434/postgres"
           SHARD_DATABASE_URLS: '{"shard-01":"postgresql+psycopg://postgres:postgres@127.0.0.1:5434/postgres","shard-02":"postgresql+psycopg://postgres:postgres@127.0.0.1:5435/postgres","shard-03":"postgresql+psycopg://postgres:postgres@127.0.0.1:5436/postgres","shard-04":"postgresql+psycopg://postgres:postgres@127.0.0.1:5437/postgres"}'
           SHARD_PROJECT_IDS: '{"shard-01":"test-shard-01","shard-02":"test-shard-02","shard-03":"test-shard-03","shard-04":"test-shard-04"}'
-          APP_PASSWORD: "altare-index-ci-password"
-          SECRET_KEY: "altare-index-ci-secret-key"
+          APP_PASSWORD: "altare-index-ci-password-000000000000000000000000"
+          SECRET_KEY: "altare-index-ci-secret-key-000000000000000000000"
           RATELIMIT_STORAGE_URI: "memory://"
         run: |
           python - <<'PY'
