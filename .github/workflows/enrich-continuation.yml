@@ -115,7 +115,7 @@ jobs:
             valid_archive=false
             for attempt in $(seq 1 12); do
               if curl --fail --silent --show-error --location -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPOSITORY}/actions/jobs/${job_id}/logs" -o "${archive}" \
-                && python3 -c 'import re, sys, zipfile; p=sys.argv[1]; data=open(p,"rb").read(); text=data.decode("utf-8-sig","replace"); ok=zipfile.is_zipfile(p) or any(re.match(r"^\\d{4}-\\d{2}-\\d{2}T", line) for line in text.splitlines()[:20]); sys.exit(0 if ok else 1)' "${archive}"; then
+                && python3 -c 'import re, sys, zipfile; p=sys.argv[1]; data=open(p,"rb").read(); text=data.decode("utf-8-sig","replace"); ok=zipfile.is_zipfile(p) or any(re.match(r"^\d{4}-\d{2}-\d{2}T", line) for line in text.splitlines()[:20]); sys.exit(0 if ok else 1)' "${archive}"; then
                 valid_archive=true
                 break
               fi
