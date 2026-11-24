@@ -541,3 +541,31 @@ Scheduled census Run #10 / [45385928930](https://github.com/imu31465/bloxd-playe
 Source PR [#10](https://github.com/imu31465/bloxd-player-search/pull/10) merged to `runner` at `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Census runs now make a second pass over all unresolved IDs (including IDs below the moving-horizon tail) while preserving the horizon recheck. The append-only progress journal is summarized by each ID's latest result: a recovered error is accepted, but any ID still ending in `err`, missing coverage, or out-of-range data continues to block shard receipts. Public validation Run [45414008055](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45414008055) passed 39 unit tests, the real four-shard PostgreSQL writer integration test, the merged main/runner checks, Altare integration tests, health/login checks, and workflow YAML validation.
 
 The first enrichment run on the PR #10 runner, [Run #40 / 45414746981](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45414746981), is active. The next scheduled census will be the live test of the retry fix on the retained frontier range.
+
+## Verified Enrichment Run #40 — 2026-11-24
+
+[Run #40 / 45414746981](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45414746981) completed successfully on the exact merged source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755` (PR #10 census retry fix). All five workers fetched/changed 400 profiles and wrote 400 snapshots each; every worker bypassed all 600 HEAD probes because all selected rows had empty cosmetics.
+
+| Worker | fetched | snapshots | gone | errors | probe429 | pending | cursor | elapsed |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 2 | 0 | 0 | 198 | 303295 → 305310 | 556s |
+| 1 | 400 | 400 | 2 | 0 | 0 | 198 | 296646 → 298656 | 444s |
+| 2 | 400 | 400 | 4 | 0 | 0 | 196 | 296597 → 298617 | 510s |
+| 3 | 400 | 400 | 1 | 0 | 0 | 199 | 296563 → 298568 | 583s |
+| 4 | 400 | 400 | 2 | 0 | 0 | 198 | 296589 → 298599 | 550s |
+
+Aggregate: 2,000 profile updates/snapshots, 11 gone, zero fetch errors, zero probe429, and zero HEAD probes. Worker times were 444–583 seconds. The 600-row window continues to provide more than the 400-profile fetch budget without any redundant probes.
+
+Four-shard read-only reconciliation:
+
+| Shard | Players | New snapshots in Run #40 | Total snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|---:|
+| 01 | 732,280 | 502 | 75,087 | 658,783 | 3,053,327 | 0 |
+| 02 | 732,164 | 504 | 75,093 | 658,680 | 3,053,343 | 0 |
+| 03 | 732,321 | 496 | 75,117 | 658,772 | 3,053,345 | 0 |
+| 04 | 732,273 | 498 | 75,137 | 658,707 | 3,053,311 | 0 |
+| **Total** | **2,929,038** | **2,000** | **300,434** | **2,634,942** | — | **0** |
+
+Saved cursors: 305310 / 298656 / 298617 / 298568 / 298599. All five still need to pass the current maximum ID, wrap below the initial 242336 cursor, and advance back through that boundary. The full initial pass remains incomplete.
+
+The notify-controller job succeeded and automatically dispatched [Run #41 / 45416901099](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45416901099), which is now active. The controller progress commit uses fetch/rebase/retry to avoid losing progress when another task-repository commit lands concurrently.
