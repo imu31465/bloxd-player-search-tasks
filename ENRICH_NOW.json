@@ -1,11 +1,11 @@
 {
-  "purpose": "retry-five-worker-enrichment-after-64-bucket-map-fix",
-  "created_at": "2026-11-24T00:10:00Z",
+  "purpose": "continue-five-worker-enrichment-catchup-from-persisted-cursors",
+  "created_at": "2026-11-24T02:20:00Z",
   "writer_cutover_enabled": true,
   "initial_census_run_id": 45179485652,
   "initial_sweep_run_id": 45179485667,
   "enrichment_runner_commit": "a2f3acd4770696a93f328e3ae2dbe743349722ac",
   "cursor_fix_pr": 7,
   "validation_run_id": 45276953466,
-  "note": "Retry five-worker profile enrichment after Run #9's five workers all stopped before profile fetch because SHARD_BUCKET_MAP had 63 entries (shard-04 had 15). Workflow commit 536b7c6d0e017bbd22fcce6ab7626900c53b58dd copies the proven sweep.yml 64-entry map (16 buckets per shard) and validates all four shard URL/project maps before DB access. Validation Run #43 passed 7/7 jobs. All workers use pinned private runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac and independent cursors census_enrich_cursor_0..4 seeded from legacy 242336. Require the storage-map validation log in every worker, all five enrich summaries, cursor checks, and four-shard integrity before acceptance."
+  "note": "Continue the bounded five-worker enrichment catch-up after verified Run #10. Run #10 successfully processed all five partitions: 2,000 fetches, 1,991 snapshots, 12 gone, 0 errors; each worker intentionally reached fetch-cap 400. Persisted cursors are census_enrich_cursor_0=250500, _1=244341, _2=244357, _3=244348, _4=244349 (legacy 242336). Latest DB reconciliation: 2,925,497 players, 246,149 snapshots, 0 orphan snapshots across four shards. All five workers use pinned private runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac, 64-bucket map and 400 cap. Continue one bounded run; verify per-worker logs/cursors and DB counts before acceptance; do not treat Actions green as full-corpus completion."
 }
