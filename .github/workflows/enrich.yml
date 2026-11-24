@@ -60,7 +60,7 @@ jobs:
           if not isinstance(completed, list) or any(item not in [0, 1, 2, 3, 4] for item in completed):
               raise SystemExit("ENRICH_PROGRESS.json completed_shards must be a list of shard indexes 0..4")
           print("enabled=" + str(enabled).lower())
-          print("completed_shards=" + ",".join(str(item) for item in sorted(set(completed))))
+          print("completed_shards=," + ",".join(str(item) for item in sorted(set(completed))) + ",")
           PY
       - name: Report continuation mode
         run: echo "ENRICH_CONTINUATION=${{ inputs.continue_chain || false }}"
@@ -104,7 +104,7 @@ jobs:
         shard: [0, 1, 2, 3, 4]
     steps:
       - name: Clone task sources at the pinned runner revision
-        if: ${{ (!inputs.force_ids && !contains(format(',{0},', needs.cutover-gate.outputs.completed_shards), format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
+        if: ${{ (!inputs.force_ids && !contains(needs.cutover-gate.outputs.completed_shards, format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
         run: |
@@ -124,18 +124,18 @@ jobs:
           unset DEPLOY_KEY
 
       - uses: actions/setup-python@v5
-        if: ${{ (!inputs.force_ids && !contains(format(',{0},', needs.cutover-gate.outputs.completed_shards), format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
+        if: ${{ (!inputs.force_ids && !contains(needs.cutover-gate.outputs.completed_shards, format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: src/requirements.txt
 
       - name: Install dependencies
-        if: ${{ (!inputs.force_ids && !contains(format(',{0},', needs.cutover-gate.outputs.completed_shards), format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
+        if: ${{ (!inputs.force_ids && !contains(needs.cutover-gate.outputs.completed_shards, format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
         run: pip install -r src/requirements.txt
 
       - name: Resolve live SP token (bloxd.io redeploy rotation)
-        if: ${{ (!inputs.force_ids && !contains(format(',{0},', needs.cutover-gate.outputs.completed_shards), format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
+        if: ${{ (!inputs.force_ids && !contains(needs.cutover-gate.outputs.completed_shards, format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
         # Each independent runner resolves and validates its own token. Values
         # are masked and never written to the job summary or public log.
         continue-on-error: true
@@ -156,7 +156,7 @@ jobs:
           fi
 
       - name: Drip refresh partition ${{ matrix.shard }}/5
-        if: ${{ (!inputs.force_ids && !contains(format(',{0},', needs.cutover-gate.outputs.completed_shards), format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
+        if: ${{ (!inputs.force_ids && !contains(needs.cutover-gate.outputs.completed_shards, format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0) }}
         env:
           DATABASE_URL: ${{ secrets.SHARD_01_DATABASE_URL }}
           SHARD_DATABASE_URLS: ${{ secrets.SHARD_DATABASE_URLS }}
