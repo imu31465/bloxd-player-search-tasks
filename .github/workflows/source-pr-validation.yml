@@ -91,6 +91,8 @@ jobs:
             source_ref: "main"
           - label: "Merged runner — scheduled writer"
             source_ref: "runner"
+          - label: "PR #9 — empty-cosmetics probe bypass"
+            source_ref: "perf/skip-probe-empty-cosmetics-20261124"
 
     steps:
       - name: Clone the selected private source branch
