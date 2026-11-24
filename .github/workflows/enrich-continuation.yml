@@ -2,7 +2,7 @@ name: enrich-continuation
 
 on:
   workflow_run:
-    workflows: ["enrich", "Enrich", "Enrich continuation"]
+    workflows: ["enrich", "Enrich", "Enrich continuation", "census", "sweep"]
     types: [completed]
   schedule:
     - cron: "*/5 * * * *"
