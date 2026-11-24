@@ -1,0 +1,12 @@
+{
+  "status": "running",
+  "started_at": "2026-11-24T04:10:08Z",
+  "starting_run_id": 45324488471,
+  "total_runs_observed": 0,
+  "completed_shards": [],
+  "last_run_id": null,
+  "last_seen_at": null,
+  "latest_workers": {},
+  "last_pause_reason": null,
+  "note": "One full cursor pass is complete for a shard only when its enrichment summary has no pending/abort/error and its cursor wraps from a higher ID to 1. The workflow-run continuation controller resumes only unfinished shards, and pauses on probe429 or fetch errors."
+}
