@@ -120,7 +120,7 @@ jobs:
               progress["status"] = "running"
               progress["last_pause_reason"] = None
               dispatch = True
-          path.write_text(json.dumps(progress, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+          path.write_text(json.dumps(progress, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           print("dispatch=" + str(dispatch).lower())
           print("reason=" + progress["status"])
           print("run_id=" + str(run_id))
