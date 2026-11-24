@@ -47,6 +47,12 @@ jobs:
           # workflow_run is the fast path. A five-minute poll is the durable
           # fallback for GitHub occasionally omitting workflow_run deliveries.
           if [[ -z "${RUN_ID}" ]]; then
+            # A GITHUB_TOKEN-dispatched controller may start just before the
+            # parent enrich workflow reaches its final completed state. Wait
+            # briefly so the completion is visible to the Actions API query.
+            if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+              sleep 20
+            fi
             python3 - <<'PY' > /tmp/enrich-run-logs/selected-run.txt
           import json
           import os
