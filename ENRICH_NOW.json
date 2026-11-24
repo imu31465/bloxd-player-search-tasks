@@ -1,11 +1,11 @@
 {
-  "purpose": "continue-five-worker-enrichment-catchup-from-run14-cursors",
-  "created_at": "2026-11-24T08:40:00Z",
+  "purpose": "continue-five-worker-enrichment-catchup-from-run15-cursors",
+  "created_at": "2026-11-24T09:12:00Z",
   "writer_cutover_enabled": true,
   "initial_census_run_id": 45179485652,
   "initial_sweep_run_id": 45179485667,
   "enrichment_runner_commit": "a2f3acd4770696a93f328e3ae2dbe743349722ac",
   "cursor_fix_pr": 7,
   "validation_run_id": 45357867951,
-  "note": "Resume bounded five-worker catch-up from the verified Run #14 cursors. Run #14 (45331636181): all five workers passed live SP mint validation and the 64-bucket/four-shard guard; 2,000 fetched, 2,000 changed profiles/snapshots, 4 gone, 0 fetch errors; every worker intentionally reached the 400-fetch cap. Persisted cursors: census_enrich_cursor_0=259095, _1=252396, _2=252392, _3=252368, _4=252369; legacy cursor=242336. Four-shard read-only reconciliation: 2,925,497 players, 254,149 snapshots, 0 orphans, 2,677,526 cosmetics-empty rows; max IDs about 3,053,345. Controller now matches workflow_run events by stable enrich workflow ID 426133266 instead of workflow-name/run-name; YAML validation Run #50 (45357867951) succeeded. Start next bounded five-worker run; verify all worker logs, saved cursors and four DB totals. Do not treat green Actions as full-pass completion."
+  "note": "Resume bounded five-worker catch-up from verified Run #15 cursors. Run #15 (45358162549): 2,000 fetched, 2,000 changed profiles/snapshots, 8 gone, one transient fetch error at worker1 cursor 253296 (retained for retry); all five workers passed live SP mint validation and four-shard storage-map validation. Read-only Neon reconciliation: 2,925,497 players, 256,149 snapshots, 0 orphan snapshots. Cursors: worker0=261115, worker1=253296, worker2=254402, worker3=254368, worker4=254379; legacy cursor=242336. Next run uses --limit 2000, --fetch-cap 400, 0.7s spacing. Continue the full-cycle scan; do not treat a green bounded run as completion."
 }
