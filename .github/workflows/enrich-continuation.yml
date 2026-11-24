@@ -62,7 +62,7 @@ jobs:
               members = [name for name in zf.namelist() if name.endswith(".txt")]
               if not members:
                   raise SystemExit(f"job log archive has no .txt members: {archive}")
-              content = "\\n".join(
+              content = chr(10).join(
                   zf.read(name).decode("utf-8", errors="replace")
                   for name in members
               )
