@@ -321,3 +321,31 @@ The one-shot trigger now has a resumable full-pass controller, so catch-up does 
 - Public-runner validation Run #46 / 45325982606 passed all seven jobs against task HEAD a58470252b0eecc84d01c4636a2dff551778d5b0, including every workflow YAML file, both source branch test/PostgreSQL suites, Altare migration/index tests, live token mint validation, four-shard Neon read/grant checks, and production gateway checks.
 
 Read-only profiling found 2,683,506 player rows currently store an empty JSON object in cosmetics (shard counts 670,934 / 670,850 / 670,905 / 670,817). The current A-gate treats an empty cosmetics object as not yet enriched, so this is an upper-bound indication of the work the cursor may encounter, not an exact remaining-fetch count: the probe, cooldown, name-match and other skip rules still filter candidates. Keep the per-runner 400 cap until observed logs justify a change.
+
+## Five-worker live Run #12 — 2026-11-24 (verified)
+
+[Task enrich Run #12 / 45324488471](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45324488471) completed successfully. All five workers passed live SP-token mint validation and the pre-DB storage-map guard (64 buckets, 16 per shard), then fetched 400 profiles each.
+
+| Worker | fetched | changed | snapshots | gone | errors | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 400 | 2 | 0 | 9,598 | 253070 → 255080 |
+| 1 | 400 | 400 | 400 | 2 | 0 | 9,598 | 246346 → 248361 |
+| 2 | 400 | 400 | 400 | 4 | 0 | 9,596 | 246357 → 248377 |
+| 3 | 400 | 400 | 400 | 1 | 0 | 9,599 | 246353 → 248358 |
+| 4 | 400 | 400 | 400 | 1 | 0 | 9,599 | 246359 → 248364 |
+
+Combined: 2,000 successful profile fetches, 2,000 changed profiles/snapshots, 10 gone, 0 fetch errors. All five reached the intentional 400-fetch cap, so their summaries say ABORTED (fetch cap 400 reached). This is resumable progress, not full-corpus completion.
+
+Independent post-run read-only reconciliation across all four Neon shards:
+- Players: 2,925,497 total (unchanged).
+- Snapshots: 250,149 total (up exactly 2,000 from Run #11).
+- Orphan snapshots: 0 on all four shards.
+- Per-shard players/snapshots: shard-01 731,408 / 62,507; shard-02 731,311 / 62,536; shard-03 731,429 / 62,549; shard-04 731,349 / 62,557.
+- Worker cursors persisted as 255080 / 248361 / 248377 / 248358 / 248364; legacy cursor remains 242336.
+- Empty cosmetics JSON rows are now 2,681,512 (down from 2,683,506 at Run #11); this is an upper-bound candidate indicator, not an exact remaining-fetch count.
+
+## Continuation controller repair — 2026-11-24
+
+The first controller attempt after Run #12 paused safely with missing-or-ambiguous-summary-0 because the run-log ZIP parsing did not identify the worker logs. No data was rolled back: Run #12 had already saved all five cursors and its database writes were independently reconciled. The controller was rebuilt to query the workflow-run jobs list, map the exact drip (0..4) job IDs, and download each job's plain-text log directly. Progress state was restored with all five verified Run #12 summaries and end cursors; the status is running, with no completed partitions yet.
+
+The rebuilt controller at task HEAD e3c95189a4457e6abfd3303418fb8e907ae20510 passed public validation [Run #49 / 45328454114](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45328454114), all seven jobs including workflow YAML parsing and the source/Altare PostgreSQL integration suites. The direct job-log parser will be live-verified by the next chained run; the chain must pause again on missing summaries, HTTP 429s, fetch errors, or unexpected aborts.
