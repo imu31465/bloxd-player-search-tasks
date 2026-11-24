@@ -260,7 +260,7 @@ jobs:
               errors = re.search(r"\berr\s+(\d+)", line)
               probe429 = re.search(r"\bprobe429\s+(\d+)", line)
               pending = re.search(r"\bpending\s+(\d+)", line)
-              aborted = re.search(r"ABORTED \((.*?)\)", line)
+              aborted = re.search(r"ABORTED \((.*)\)", line)
               if cursor is None or errors is None:
                   pause_reason = f"unparseable-summary-{shard}"
                   break
@@ -325,13 +325,24 @@ jobs:
                   probe429_count and abort_reason
                   and abort_reason.startswith("probe 429 storm")
               )
+              # A failed periodic re-mint after a batch of HTTP 502/429
+              # fetch failures is recoverable: the fetch script has already
+              # retained every unresolved ID in its cursor. Continue the
+              # chain and retry that cursor on a fresh runner. Only the
+              # per-cursor retry ceiling above may pause it.
+              retryable_remint_abort = bool(
+                  err_count and abort_reason
+                  and abort_reason.startswith("re-mint unavailable after retries")
+                  and int(cycle.get("retry_count", 0)) <= 3
+              )
               if (abort_reason and abort_reason != "fetch cap 400 reached"
-                      and not probe_storm_abort):
+                      and not probe_storm_abort and not retryable_remint_abort):
                   pause_reason = f"worker-{shard}-aborted-{abort_reason}"
                   break
               if pending_count and abort_reason != "fetch cap 400 reached":
                   retryable_fetch_error = bool(
-                      err_count and abort_reason is None
+                      err_count
+                      and (abort_reason is None or retryable_remint_abort)
                       and int(cycle.get("retry_count", 0)) <= 3
                   )
                   retryable_probe429 = bool(
