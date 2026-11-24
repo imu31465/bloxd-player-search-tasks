@@ -1,11 +1,11 @@
 {
-  "purpose": "continue-five-worker-enrichment-catchup-from-persisted-cursors",
-  "created_at": "2026-11-24T02:20:00Z",
+  "purpose": "continue-five-worker-enrichment-catchup-from-run11-cursors",
+  "created_at": "2026-11-24T04:09:00Z",
   "writer_cutover_enabled": true,
   "initial_census_run_id": 45179485652,
   "initial_sweep_run_id": 45179485667,
   "enrichment_runner_commit": "a2f3acd4770696a93f328e3ae2dbe743349722ac",
   "cursor_fix_pr": 7,
   "validation_run_id": 45276953466,
-  "note": "Continue the bounded five-worker enrichment catch-up after verified Run #10. Run #10 successfully processed all five partitions: 2,000 fetches, 1,991 snapshots, 12 gone, 0 errors; each worker intentionally reached fetch-cap 400. Persisted cursors are census_enrich_cursor_0=250500, _1=244341, _2=244357, _3=244348, _4=244349 (legacy 242336). Latest DB reconciliation: 2,925,497 players, 246,149 snapshots, 0 orphan snapshots across four shards. All five workers use pinned private runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac, 64-bucket map and 400 cap. Continue one bounded run; verify per-worker logs/cursors and DB counts before acceptance; do not treat Actions green as full-corpus completion."
+  "note": "Continue the bounded five-worker enrichment catch-up after independently verified Run #11. Run #11: all 5 workers passed live SP token mint validation and the 64-bucket/4-shard pre-DB guard; 2,000 profile fetches, 2,000 changed profiles/snapshots, 5 gone, 0 fetch errors. All workers reached the intentional 400 fetch cap. Persisted cursors: census_enrich_cursor_0=253070, _1=246346, _2=246357, _3=246353, _4=246359 (legacy 242336). Latest four-shard read-only reconciliation: 2,925,497 players, 248,149 snapshots, 0 orphan snapshots. Continue from those saved cursors using pinned private runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac, the validated 64-bucket map and existing 400-per-worker cap. Verify every worker log, cursor and all four DB totals before acceptance; green Actions does not mean full-corpus completion."
 }
