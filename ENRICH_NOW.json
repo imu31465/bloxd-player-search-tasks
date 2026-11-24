@@ -1,11 +1,11 @@
 {
-  "purpose": "continue-five-worker-enrichment-catchup-from-run12-cursors",
-  "created_at": "2026-11-24T04:46:15.127Z",
+  "purpose": "continue-five-worker-enrichment-catchup-from-run14-cursors",
+  "created_at": "2026-11-24T08:40:00Z",
   "writer_cutover_enabled": true,
   "initial_census_run_id": 45179485652,
   "initial_sweep_run_id": 45179485667,
   "enrichment_runner_commit": "a2f3acd4770696a93f328e3ae2dbe743349722ac",
   "cursor_fix_pr": 7,
-  "validation_run_id": 45328454114,
-  "note": "Resume bounded five-worker enrichment after independently verified Run #12. Run #12: all five workers passed live SP mint validation and the 64-bucket/four-shard guard; 2,000 fetched, 2,000 changed, 2,000 snapshots, 10 gone, 0 fetch errors. Every worker reached the intentional 400 cap. Verified persisted cursors: census_enrich_cursor_0=255080, _1=248361, _2=248377, _3=248358, _4=248364 (legacy 242336). Latest direct Neon reconciliation: 2,925,497 players, 250,149 snapshots, 0 orphan snapshots; cosmetics-empty rows 2,681,512. The auto-continuation controller now downloads exact worker logs by job ID; controller workflow HEAD e3c95189a4457e6abfd3303418fb8e907ae20510 passed validation Run #49 (45328454114). Continue with pinned private runner SHA a2f3acd4770696a93f328e3ae2dbe743349722ac, 64-bucket map and existing 400-per-worker cap. Verify logs, cursors and all four DB totals; green Actions is not full completion."
+  "validation_run_id": 45357867951,
+  "note": "Resume bounded five-worker catch-up from the verified Run #14 cursors. Run #14 (45331636181): all five workers passed live SP mint validation and the 64-bucket/four-shard guard; 2,000 fetched, 2,000 changed profiles/snapshots, 4 gone, 0 fetch errors; every worker intentionally reached the 400-fetch cap. Persisted cursors: census_enrich_cursor_0=259095, _1=252396, _2=252392, _3=252368, _4=252369; legacy cursor=242336. Four-shard read-only reconciliation: 2,925,497 players, 254,149 snapshots, 0 orphans, 2,677,526 cosmetics-empty rows; max IDs about 3,053,345. Controller now matches workflow_run events by stable enrich workflow ID 426133266 instead of workflow-name/run-name; YAML validation Run #50 (45357867951) succeeded. Start next bounded five-worker run; verify all worker logs, saved cursors and four DB totals. Do not treat green Actions as full-pass completion."
 }
