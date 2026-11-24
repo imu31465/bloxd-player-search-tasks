@@ -241,9 +241,23 @@ jobs:
                   str(shard),
                   {"start_cursor": 242336, "wrapped": False, "completed": False},
               )
+              # Probe 429s already received three in-script cooldown rounds.
+              # Retry the retained earliest cursor across bounded runs, and
+              # pause only after four consecutive runs fail at that same ID.
               if probe429_count:
-                  pause_reason = f"worker-{shard}-reported-probe429"
-                  break
+                  if int(cycle.get("probe_retry_cursor", -1)) == end:
+                      probe_retry_count = int(cycle.get("probe_retry_count", 0)) + 1
+                  else:
+                      probe_retry_count = 1
+                  cycle["probe_retry_cursor"] = end
+                  cycle["probe_retry_count"] = probe_retry_count
+                  if probe_retry_count > 3:
+                      pause_reason = f"worker-{shard}-same-probe-cursor-429-{probe_retry_count}-runs"
+                      break
+              else:
+                  cycle.pop("probe_retry_cursor", None)
+                  cycle.pop("probe_retry_count", None)
+
               if err_count:
                   if int(cycle.get("retry_cursor", -1)) == end:
                       retry_count = int(cycle.get("retry_count", 0)) + 1
@@ -259,12 +273,32 @@ jobs:
                   cycle.pop("retry_count", None)
 
               worker_state[str(shard)]["retry_count"] = int(cycle.get("retry_count", 0))
-              if abort_reason and abort_reason != "fetch cap 400 reached":
+              probe_storm_abort = bool(
+                  probe429_count and abort_reason
+                  and abort_reason.startswith("probe 429 storm")
+              )
+              if (abort_reason and abort_reason != "fetch cap 400 reached"
+                      and not probe_storm_abort):
                   pause_reason = f"worker-{shard}-aborted-{abort_reason}"
                   break
               if pending_count and abort_reason != "fetch cap 400 reached":
-                  pause_reason = f"worker-{shard}-has-pending-without-fetch-cap"
-                  break
+                  retryable_fetch_error = bool(
+                      err_count and abort_reason is None
+                      and int(cycle.get("retry_count", 0)) <= 3
+                  )
+                  retryable_probe429 = bool(
+                      probe429_count and probe_retry_count <= 3
+                      and (abort_reason is None or probe_storm_abort)
+                  )
+                  cooldown_deferred = bool(
+                      not err_count and not probe429_count
+                      and start == end and abort_reason is None
+                  )
+                  if cooldown_deferred:
+                      worker_state[str(shard)]["retry_deferred"] = True
+                  elif not (retryable_fetch_error or retryable_probe429):
+                      pause_reason = f"worker-{shard}-has-pending-without-safe-retry"
+                      break
 
               # A first wrap only proves that IDs above the legacy
               # high-watermark were exhausted. Continue from ID 1 until the
@@ -273,7 +307,9 @@ jobs:
               cycle_start = int(cycle.get("start_cursor", 242336))
               if end < cycle_start:
                   cycle["wrapped"] = True
-              if cycle.get("wrapped") and end >= cycle_start and err_count == 0:
+              if (cycle.get("wrapped") and end >= cycle_start
+                      and err_count == 0 and probe429_count == 0
+                      and pending_count == 0):
                   completed.add(shard)
                   cycle["completed"] = True
               progress["worker_cycles"][str(shard)] = cycle
