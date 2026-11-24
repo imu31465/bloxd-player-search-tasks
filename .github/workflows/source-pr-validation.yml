@@ -91,6 +91,8 @@ jobs:
             source_ref: "main"
           - label: "Merged runner — scheduled writer"
             source_ref: "runner"
+          - label: "PR #10 — census unresolved-probe retry"
+            source_ref: "fix/census-unresolved-probe-retry-20261124"
 
     steps:
       - name: Clone the selected private source branch
