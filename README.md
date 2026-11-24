@@ -443,3 +443,35 @@ Run #17 confirms the 2,000-row probe setting still fills the per-worker 400-fetc
 ### Failed-run recovery path
 
 Controller revision `5f7f28db0085688cd97b9f1f08d7b75cc06ae62b` adds automatic recovery for a completed unsuccessful enrichment workflow: the next scheduled poll records the failed run, re-dispatches a fresh bounded batch, and pauses only after four consecutive failed workflows. The JSON newline serialization correction is `9a5883a562f043a54cb02edb226ef14cf889eb82`. Public workflow validation for the controller revision passed as Run `45367384896`; a live failed-run recovery has not yet been needed to exercise this branch.
+
+## Verified Enrichment Run #37 — 2026-11-24
+
+[Run #37 / 45408097607](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45408097607) completed successfully after all five workers passed live token validation and the four-shard configuration gate. The run still used the pre-optimization runner SHA `26bb43760c1344f42cb4238088d3cf0efcfc9108` and `--limit 1000`.
+
+| Worker | fetched | snapshots | gone | errors | probe429 | pending | cursor | elapsed |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 4 | 0 | 0 | 596 | 297270 → 299290 | 634s |
+| 1 | 400 | 400 | 1 | 0 | 0 | 599 | 290631 → 292636 | 613s |
+| 2 | 400 | 400 | 3 | 0 | 0 | 597 | 290552 → 292567 | 582s |
+| 3 | 400 | 400 | 0 | 0 | 0 | 600 | 290553 → 292558 | 564s |
+| 4 | 400 | 400 | 2 | 0 | 0 | 598 | 290554 → 292564 | 626s |
+
+Aggregate: 2,000 profile updates/snapshots, 10 gone, zero fetch errors and zero probe429. The full-cycle scan remains incomplete; all cursors are still above the 242336 start boundary.
+
+Four-shard read-only reconciliation after Run #37:
+
+| Shard | Players | Snapshots | Empty cosmetics | Orphan snapshots |
+|---|---:|---:|---:|---:|
+| 01 | 732,280 | 73,609 | 660,256 | 0 |
+| 02 | 732,164 | 73,619 | 660,153 | 0 |
+| 03 | 732,321 | 73,656 | 660,231 | 0 |
+| 04 | 732,273 | 73,675 | 660,167 | 0 |
+| **Total** | **2,929,038** | **294,559** | **2,640,807** | **0** |
+
+### Remove redundant probes from the dominant empty-cosmetics path
+
+Source PR [#9](https://github.com/imu31465/bloxd-player-search/pull/9) was squash-merged to `runner` at `02c7174de89055c7363d2a143be009e57ac0ff36`. Empty-cosmetics rows are unconditional social-fetch candidates in the enrichment loop, so their HEAD redirect probes never affected the decision. The runner now bypasses those redundant probes and retains A-gate probing only for profiles whose cosmetics are already populated, where the redirect is needed to detect renames.
+
+The regression suite covers empty and populated cosmetics, and the public-runner validation passed 35 unit tests plus the real four-shard PostgreSQL writer integration test in Run [45410431629](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45410431629). The merged `runner` branch was also checked by the follow-up production validation workflow.
+
+The next batch, [Run #38 / 45410345316](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45410345316), pins the merged runner SHA. The task workflow now uses `--limit 600` rather than 1,000 because empty-cosmetics records no longer consume HEAD probes; the 400 social-fetch cap, one probe worker, and 0.7-second inter-fetch delay remain unchanged. Accept this smaller window only after the live batch proves 400 fetches per worker without errors/429 or candidate shortage.
