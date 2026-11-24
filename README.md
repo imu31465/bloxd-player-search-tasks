@@ -619,3 +619,29 @@ The persisted worker cursors are 323360 / 316636 / 314042 / 314733 / 316554; the
 ## Census replay Run #11 — 2026-11-24
 
 Census Run #10 / 45385928930 failed closed on 11 and 4 unresolved probe IDs in two shards, leaving `census_frontier_cursor=3013345` unchanged. After source PR #10 (merged runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`) added the unresolved-ID second pass, one targeted manual replay was dispatched as [Run #11 / 45448123052](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45448123052). It processes the same retained frontier range; no manual cursor advance was made. All four scan receipts and the finalizer must pass before the frontier is accepted. Census and enrichment share `player-search-writers`; the enrichment controller waits for census completion.
+
+## Census Run #11 — resolved previously failed probes — 2026-11-24
+
+[Census Run #11 / 45448123052](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45448123052) successfully replayed the exact range left unfinalized by Run #10, using merged source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755` (PR #10). All four scan jobs completed with round 1 plus the unresolved-ID retry pass in round 2, all four shard receipts were published, and the finalizer succeeded.
+
+| Scan shard | Range | Round 1 accounts | Retry-round accounts | Final accounts | Newly added |
+|---|---:|---:|---:|---:|---:|
+| 0 | 3,013,346–3,023,345 | 9,377 | 7 | 9,384 | 8,153 |
+| 1 | 3,023,346–3,033,345 | 8,133 | 1 | 8,134 | 2,923 |
+| 2 | 3,033,346–3,043,345 | 9,631 | 6 | 9,637 | 86 |
+| 3 | 3,043,346–3,053,345 | 9,474 | 0 | 9,474 | 3 |
+| **Total** | **40,000 IDs** | **36,615** | **14** | **36,629** | **11,165** |
+
+The second pass recovered all 14 IDs that had remained unresolved in Run #10's two failed shards, plus 6 additional errors encountered in the replay (all were resolved by the second pass). No unresolved IDs remained, so all four receipts were accepted. The frontier advanced from 3,013,345 to 3,051,345, retaining the configured 2,000-ID overlap. The next hourly census continues from that saved frontier; no cursor was advanced manually.
+
+Four-shard read-only database reconciliation after finalization:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 735,077 | 79,435 | 657,236 | 3,053,327 | 0 |
+| 02 | 734,929 | 79,444 | 657,102 | 3,053,343 | 0 |
+| 03 | 735,110 | 79,473 | 657,207 | 3,053,345 | 0 |
+| 04 | 735,087 | 79,489 | 657,175 | 3,053,311 | 0 |
+| **Total** | **2,940,203** | **317,841** | **2,628,720** | — | **0** |
+
+The one-time replay dispatcher was removed immediately after it launched Run #11. The recurring controller still monitors the normal hourly census/sweep schedule and resumes the enrichment chain only when no writer is active and the next reserved writer slot is sufficiently far away.
