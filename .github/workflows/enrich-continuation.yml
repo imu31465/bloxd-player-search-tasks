@@ -76,6 +76,7 @@ jobs:
             fi
             read -r RUN_ID RUN_EVENT < /tmp/enrich-run-logs/selected-run.txt
           fi
+          export RUN_ID RUN_EVENT
           echo "Processing enrich run ${RUN_ID} (event: ${RUN_EVENT})"
           curl --fail --silent --show-error --location -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" -o /tmp/enrich-run-logs/jobs.json
 
@@ -144,7 +145,7 @@ jobs:
               progress["last_seen_at"] = datetime.now(timezone.utc).isoformat()
               progress["last_ignored_run_reason"] = "manual-dispatch-not-auto-continuation"
               progress_path.write_text(
-                  json.dumps(progress, indent=2, ensure_ascii=False) + "\\n",
+                  json.dumps(progress, indent=2, ensure_ascii=False) + "\n",
                   encoding="utf-8",
               )
               print("dispatch=false")
