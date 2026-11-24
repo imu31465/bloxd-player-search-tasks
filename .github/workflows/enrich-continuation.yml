@@ -1,0 +1,170 @@
+name: enrich-continuation
+
+on:
+  workflow_run:
+    workflows: ["enrich"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  continue:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Inspect worker summaries and advance full-pass state
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/enrich-run-logs
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPOSITORY}/actions/runs/${RUN_ID}/logs" \
+            -o /tmp/enrich-run-logs.zip
+          unzip -q /tmp/enrich-run-logs.zip -d /tmp/enrich-run-logs
+
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path("/tmp/enrich-run-logs")
+          progress_path = Path("ENRICH_PROGRESS.json")
+          progress = json.loads(progress_path.read_text(encoding="utf-8"))
+          run_id = int(os.environ["RUN_ID"])
+          run_event = os.environ["RUN_EVENT"]
+
+          all_log_text = "\n".join(
+              path.read_text(encoding="utf-8", errors="replace")
+              for path in root.rglob("*.txt")
+          )
+          # Manual force_ids runs are intentionally one-off and must not
+          # start an unattended full-corpus continuation chain.
+          if run_event == "workflow_dispatch" and "ENRICH_CONTINUATION=true" not in all_log_text:
+              print("dispatch=false")
+              print("reason=manual-dispatch-not-auto-continuation")
+              raise SystemExit(0)
+
+          if progress.get("status") == "completed":
+              print("dispatch=false")
+              print("reason=full-pass-already-complete")
+              raise SystemExit(0)
+
+          completed = set(progress.get("completed_shards", []))
+          active = sorted(set(range(5)) - completed)
+          worker_state = {}
+          pause_reason = None
+
+          for shard in active:
+              matches = list(root.rglob(f"drip ({shard}).txt"))
+              if len(matches) != 1:
+                  pause_reason = f"missing-or-ambiguous-worker-log-{shard}"
+                  break
+              content = matches[0].read_text(encoding="utf-8", errors="replace")
+              summaries = [line for line in content.splitlines() if "bloxd enrich:" in line]
+              if len(summaries) != 1:
+                  pause_reason = f"missing-or-ambiguous-summary-{shard}"
+                  break
+              line = summaries[0]
+              cursor = re.search(r"cursor\s+(\d+)->(\d+)", line)
+              errors = re.search(r"\berr\s+(\d+)", line)
+              probe429 = re.search(r"\bprobe429\s+(\d+)", line)
+              pending = re.search(r"\bpending\s+(\d+)", line)
+              aborted = re.search(r"ABORTED \((.*?)\)", line)
+              if cursor is None or errors is None:
+                  pause_reason = f"unparseable-summary-{shard}"
+                  break
+              start, end = (int(cursor.group(1)), int(cursor.group(2)))
+              err_count = int(errors.group(1))
+              probe429_count = int(probe429.group(1)) if probe429 else 0
+              pending_count = int(pending.group(1)) if pending else 0
+              abort_reason = aborted.group(1) if aborted else None
+
+              worker_state[str(shard)] = {
+                  "cursor_start": start,
+                  "cursor_end": end,
+                  "err": err_count,
+                  "probe429": probe429_count,
+                  "pending": pending_count,
+                  "abort_reason": abort_reason,
+                  "summary": line.strip()[-1200:],
+              }
+
+              if err_count or probe429_count:
+                  pause_reason = f"worker-{shard}-reported-errors-or-probe429"
+                  break
+              if abort_reason and abort_reason != "fetch cap 400 reached":
+                  pause_reason = f"worker-{shard}-aborted-{abort_reason}"
+                  break
+              if pending_count and abort_reason != "fetch cap 400 reached":
+                  pause_reason = f"worker-{shard}-has-pending-without-fetch-cap"
+                  break
+
+              # A clean cursor wrap proves this worker traversed its whole
+              # remaining ID space from the saved starting point.
+              if end < start and pending_count == 0 and abort_reason is None:
+                  completed.add(shard)
+
+          progress["total_runs_observed"] = int(progress.get("total_runs_observed", 0)) + 1
+          progress["last_run_id"] = run_id
+          progress["last_seen_at"] = datetime.now(timezone.utc).isoformat()
+          progress["latest_workers"] = worker_state
+          progress["completed_shards"] = sorted(completed)
+
+          if pause_reason:
+              progress["status"] = "paused"
+              progress["last_pause_reason"] = pause_reason
+              dispatch = False
+          elif len(completed) == 5:
+              progress["status"] = "completed"
+              progress["completed_at"] = datetime.now(timezone.utc).isoformat()
+              progress["last_pause_reason"] = None
+              dispatch = False
+          else:
+              progress["status"] = "running"
+              progress["last_pause_reason"] = None
+              dispatch = True
+
+          progress_path.write_text(json.dumps(progress, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          print("dispatch=" + str(dispatch).lower())
+          print("completed_shards=" + ",".join(str(x) for x in sorted(completed)))
+          print("reason=" + (pause_reason or progress["status"]))
+          print("run_id=" + str(run_id))
+          PY
+
+      - name: Commit progress state
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ENRICH_PROGRESS.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update full-pass enrichment progress"
+            git push origin HEAD:main
+          fi
+
+      - name: Dispatch the next bounded pass
+        if: ${{ steps.plan.outputs.dispatch == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh api --method POST "repos/${REPOSITORY}/actions/workflows/enrich.yml/dispatches" \
+            -f ref=main \
+            -f inputs[continue_chain]=true
