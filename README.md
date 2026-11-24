@@ -421,3 +421,25 @@ Controller implementation at `650c9fb2bd8c34625b510b7c04d4fff08283e597` passed p
 ### Probe-window optimization
 
 Run #16 confirms that a 2,000-row probe window is substantially larger than the number needed to reach the unchanged 400-fetch cap: each worker left 1,375–1,600 candidates unprobed after hitting the cap. The workflow now reduces the next run's probe window to 1,000 rows, preserving the 400 fetch cap, one probe worker, three 429 cooldown rounds, and 0.7-second inter-fetch delay. This provides a 2.5× candidate buffer at the measured density while halving the HEAD-probe volume compared with 2,000. Run #17 still uses the already-started 2,000-row configuration; verify all five workers on the next run before accepting the 1,000-row setting. Any candidate shortage, probe429, or error pattern requires restoring the previous window or further tuning.
+
+## Verified Run #17 — 2026-11-24
+
+[Enrich Run #17 / 45365831207](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45365831207) completed successfully after source PR #8 merged. The prepare job pinned the merged private source SHA `26bb43760c1344f42cb4238088d3cf0efcfc9108`; gate, prepare, and all five worker jobs succeeded.
+
+| Worker | fetched | changed/snapshots | gone | errors | probe429 | pending | cursor | elapsed |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 2 | 0 | 0 | 1,598 | 263115 → 265130 | 686s |
+| 1 | 400 | 400 | 1 | 0 | 0 | 1,599 | 256426 → 258431 | 704s |
+| 2 | 400 | 400 | 4 | 0 | 0 | 1,596 | 256407 → 258427 | 711s |
+| 3 | 400 | 400 | 3 | 0 | 0 | 1,597 | 256368 → 258383 | 714s |
+| 4 | 400 | 400 | 3 | 0 | 0 | 1,597 | 256384 → 258399 | 698s |
+
+Aggregate: 2,000 updated profiles/snapshots, 13 gone, zero fetch errors, zero probe429. Four-shard reconciliation after the run: 2,925,497 players, 260,148 snapshots, zero orphan snapshots, and 2,671,561 rows whose cosmetics JSON is still empty (an upper bound, not a count of eligible profile fetches). Per-shard player/snapshot/empty-cosmetics counts are 731,408 / 65,007 / 667,953; 731,311 / 65,026 / 667,864; 731,429 / 65,047 / 667,920; and 731,349 / 65,068 / 667,824. Cursors: 265130 / 258431 / 258427 / 258383 / 258399; legacy cursor remains 242336. All worker cycles remain incomplete.
+
+### Probe-window v2
+
+Run #17 confirms the 2,000-row probe setting still fills the per-worker 400-fetch budget, but leaves 1,596–1,599 rows unprobed after the cap. The next bounded run uses `--limit 1000`, leaving a measured 2.5× margin at the current density while halving serial HEAD probes again. The complete public validation run for the 1,000-row workflow revision is `45366651255` (all seven jobs successful). The 1,000-row setting is accepted only after the next live five-worker batch achieves the intended cap without 429/errors or candidate shortage.
+
+### Failed-run recovery path
+
+Controller revision `5f7f28db0085688cd97b9f1f08d7b75cc06ae62b` adds automatic recovery for a completed unsuccessful enrichment workflow: the next scheduled poll records the failed run, re-dispatches a fresh bounded batch, and pauses only after four consecutive failed workflows. The JSON newline serialization correction is `9a5883a562f043a54cb02edb226ef14cf889eb82`. Public workflow validation for the controller revision passed as Run `45367384896`; a live failed-run recovery has not yet been needed to exercise this branch.
