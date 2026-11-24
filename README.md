@@ -645,3 +645,30 @@ Four-shard read-only database reconciliation after finalization:
 | **Total** | **2,940,203** | **317,841** | **2,628,720** | — | **0** |
 
 The one-time replay dispatcher was removed immediately after it launched Run #11. The recurring controller still monitors the normal hourly census/sweep schedule and resumes the enrichment chain only when no writer is active and the next reserved writer slot is sufficiently far away.
+
+## Enrichment Run #50 — pending-ID retry and four-shard reconciliation — 2026-11-24
+
+[Enrich Run #50 / 45449871495](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45449871495) completed all five workers on source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Worker | fetched | changed | snapshots | gone | errors | skipped | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 400 | 2 | 0 | 0 | 198 | 323360 → 325370 |
+| 1 | 400 | 400 | 400 | 2 | 0 | 0 | 198 | 316636 → 318646 |
+| 2 | 400 | 400 | 400 | 0 | 0 | 0 | 200 | 314042 → 316042 |
+| 3 | 258 | 253 | 253 | 0 | 0 | 342 | 0 | 314733 → 317729 |
+| 4 | 400 | 400 | 400 | 3 | 0 | 0 | 197 | 316554 → 318569 |
+| **Total** | **1,858** | **1,853** | **1,853** | **7** | **0** | **342** | **793** | — |
+
+Worker3 successfully retried the HTTP 502 failure retained from Run #49. It fetched 258 candidates, wrote 253 changed profiles/snapshots, skipped 342 already-protected candidates, and ended with no pending IDs or errors. The other four workers each reached the 400-fetch budget and preserved remaining candidates in their cursors. HTTP probe429 and fetch errors were zero across the run.
+
+Four-shard read-only reconciliation after Run #50:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 735,077 | 79,897 | 656,777 | 3,053,327 | 0 |
+| 02 | 734,929 | 79,907 | 656,639 | 3,053,343 | 0 |
+| 03 | 735,110 | 79,936 | 656,745 | 3,053,345 | 0 |
+| 04 | 735,087 | 79,954 | 656,711 | 3,053,311 | 0 |
+| **Total** | **2,940,203** | **319,694** | **2,626,872** | — | **0** |
+
+Persisted worker cursors are 325370 / 318646 / 316042 / 317729 / 318569. Worker3's prior retry state was cleared after its successful retry. All five full-cycle flags remain false because every worker is still above the original 242336 boundary. The continuation controller woke after this run, but its writer guard correctly deferred dispatch because the next hourly census slot was imminent; the five-minute scheduled controller remains responsible for resuming in the next safe window.
