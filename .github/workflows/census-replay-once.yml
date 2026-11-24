@@ -1,0 +1,27 @@
+name: One-time census retry dispatch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/census-replay-once.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Dispatch census retry against the persisted frontier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/${REPOSITORY}/actions/workflows/census.yml/dispatches" \
+            -f ref=main -f inputs[window]=0
+          echo "Dispatched one census retry using the existing saved frontier."
