@@ -397,7 +397,25 @@ jobs:
           git add ENRICH_PROGRESS.json
           if ! git diff --cached --quiet; then
             git commit -m "Update full-pass enrichment progress"
-            git push origin HEAD:main
+            # Other independent task-repo commits (for example, validation
+            # workflow maintenance) can land while this run is parsing logs.
+            # Rebase the progress-only commit instead of abandoning the run
+            # when its first non-fast-forward push races with main.
+            pushed=false
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                pushed=true
+                break
+              fi
+              echo "progress push raced with another main update (attempt $attempt/5); retrying"
+              sleep "$attempt"
+            done
+            if [[ "$pushed" != true ]]; then
+              echo "::error::Could not publish enrichment progress after five rebased push attempts."
+              exit 1
+            fi
           fi
 
       - name: Dispatch the next bounded pass
