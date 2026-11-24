@@ -14,8 +14,13 @@
       "probe429": 0,
       "pending": 600,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-24T14:13:43.3734833Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 400 name 56 games 16), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 600 · cursor 299290->301290 · 407s · ABORTED (fetch cap 400 reached) [mode=cursor shard=0/5]",
-      "retry_count": 0
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 0,
+      "skipped": 0,
+      "retry_count": 0,
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 400 name 56 games 16), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 600; cursor 299290->301290; 407s; ABORTED (fetch cap 400 reached); probing 0 enriched players (1000 empty-cosmetics rows bypassed)"
     },
     "1": {
       "cursor_start": 292636,
@@ -24,8 +29,13 @@
       "probe429": 0,
       "pending": 599,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-24T14:16:23.0588034Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 400 name 54 games 26 ranks 1), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 599 · cursor 292636->294646 · 562s · ABORTED (fetch cap 400 reached) [mode=cursor shard=1/5]",
-      "retry_count": 0
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 1,
+      "skipped": 0,
+      "retry_count": 0,
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 400 name 54 games 26 ranks 1), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 599; cursor 292636->294646; 562s; ABORTED (fetch cap 400 reached); probing 0 enriched players (1000 empty-cosmetics rows bypassed)"
     },
     "2": {
       "cursor_start": 292567,
@@ -34,8 +44,13 @@
       "probe429": 0,
       "pending": 598,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-24T14:16:17.1271123Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 400 games 23 name 51), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 598 · cursor 292567->294577 · 544s · ABORTED (fetch cap 400 reached) [mode=cursor shard=2/5]",
-      "retry_count": 0
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 2,
+      "skipped": 0,
+      "retry_count": 0,
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 400 games 23 name 51), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 598; cursor 292567->294577; 544s; ABORTED (fetch cap 400 reached); probing 0 enriched players (1000 empty-cosmetics rows bypassed)"
     },
     "3": {
       "cursor_start": 292558,
@@ -44,8 +59,13 @@
       "probe429": 0,
       "pending": 600,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-24T14:14:15.2563221Z 🧬 bloxd enrich: ok 400, changed 400 (name 51 colour 400 cosmetics 399 games 26), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 600 · cursor 292558->294558 · 451s · ABORTED (fetch cap 400 reached) [mode=cursor shard=3/5]",
-      "retry_count": 0
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 0,
+      "skipped": 0,
+      "retry_count": 0,
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 399 name 51 games 26), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 600; cursor 292558->294558; 451s; ABORTED (fetch cap 400 reached); probing 0 enriched players (1000 empty-cosmetics rows bypassed)"
     },
     "4": {
       "cursor_start": 292564,
@@ -54,12 +74,17 @@
       "probe429": 0,
       "pending": 598,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-24T14:14:13.3724739Z 🧬 bloxd enrich: ok 400, changed 400 (name 42 colour 400 cosmetics 400 games 26), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 598 · cursor 292564->294579 · 448s · ABORTED (fetch cap 400 reached) [mode=cursor shard=4/5]",
-      "retry_count": 0
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 2,
+      "skipped": 0,
+      "retry_count": 0,
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 399 games 26 name 42 ranks 1), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 598; cursor 292564->294579; 448s; ABORTED (fetch cap 400 reached); probing 0 enriched players (1000 empty-cosmetics rows bypassed)"
     }
   },
   "last_pause_reason": null,
-  "note": "Run #37 (45408097607) verified on source runner 26bb43760c1344f42cb4238088d3cf0efcfc9108: all five workers fetched/changed 400, wrote 2,000 snapshots, 10 gone, zero errors and zero probe429. Cursors: 299290 / 292636 / 292567 / 292558 / 292564. Four-shard read-only reconciliation after Run #37: 2,929,038 players, 294,559 snapshots, 0 orphan snapshots, 2,640,807 rows with empty cosmetics. No worker has wrapped below the 242336 starting boundary. Source PR #9 is merged at 02c7174de89055c7363d2a143be009e57ac0ff36: empty-cosmetics profiles now bypass redundant HEAD probes, with 35 unit tests and four-shard writer integration passing in public validation Run 45410431629. Run #38 (45410345316) is in progress on that merged runner; its workflow uses --limit 600 with the 400 fetch cap, one probe worker, and 0.7s spacing. Validate 400 fetches per worker, reduced probe count/runtime, no errors/429, and four-shard integrity before accepting the new setting. Full-cycle completion still requires each cursor to wrap below 242336 and return through that boundary with no pending/errors/429.",
+  "note": "Run #38 (45410345316) verified on merged source runner 02c7174de89055c7363d2a143be009e57ac0ff36. All five workers each fetched/changed 400 profiles and wrote 400 snapshots; total 2,000 snapshots, 5 gone, zero errors and zero probe429. All 1,000 selected rows per worker had empty cosmetics, so the optimized code bypassed all 1,000 HEAD probes (0 enriched profiles probed). Runtimes: 407 / 562 / 544 / 451 / 448 seconds. Important: Run #38 was dispatched before the task workflow's --limit 600 update, so it still used a 1,000-row selection window. The first --limit 600 run is Run #39 (45412378928). Four-shard reconciliation after Run38: 2,929,038 players, 296,610 snapshots, 2,638,757 empty-cosmetics rows, zero orphan snapshots; max IDs 3,053,327 / 3,053,343 / 3,053,345 / 3,053,311. Cursors: 301290 / 294646 / 294577 / 294558 / 294579. No worker has wrapped below the 242336 starting boundary. Full-cycle completion requires wrapping below 242336 then returning through the boundary with zero pending/errors/429.",
   "worker_cycles": {
     "0": {
       "start_cursor": 242336,
