@@ -70,16 +70,54 @@ jobs:
           })
           with urllib.request.urlopen(request, timeout=20) as response:
               data = json.load(response)
+          runs = data.get("workflow_runs", [])
           pending = sorted(
-              (run for run in data.get("workflow_runs", [])
+              (run for run in runs
                if int(run.get("workflow_id", 0)) == 426133266
                and int(run.get("id", 0)) > last_run_id),
               key=lambda run: (run.get("run_number", 0), run.get("id", 0)),
           )
-          if not pending or pending[0].get("status") != "completed":
+
+          if pending:
+              # Never dispatch around a queued/in-progress enrich run. It may
+              # already be the next batch or another delivery of the same one.
+              if pending[0].get("status") != "completed":
+                  raise SystemExit(0)
+              run = pending[0]
+              print(f"{run['id']} {run.get('event', '')} {run.get('conclusion', '')}")
               raise SystemExit(0)
-          run = pending[0]
-          print(f"{run['id']} {run.get('event', '')} {run.get('conclusion', '')}")
+
+          # A five-minute controller poll also resumes a running chain after
+          # the scheduled census/sweep writer has had its reserved slot.
+          # Writers share player-search-writers, so don't race or starve them.
+          if progress.get("status") != "running":
+              raise SystemExit(0)
+          active_writer_ids = {426133178, 426133230, 426133266}
+          active = [
+              run for run in runs
+              if int(run.get("workflow_id", 0)) in active_writer_ids
+              and run.get("status") in {"queued", "in_progress", "waiting", "requested"}
+          ]
+          if active:
+              raise SystemExit(0)
+
+          from datetime import datetime, timezone
+          now = datetime.now(timezone.utc)
+          upcoming = []
+          for minute in (13, 47):  # hourly sweep and census reservations (UTC)
+              slot = now.replace(minute=minute, second=0, microsecond=0)
+              if slot <= now:
+                  slot = slot.replace(hour=slot.hour)  # keep timezone-aware value
+                  from datetime import timedelta
+                  slot += timedelta(hours=1)
+              upcoming.append((slot - now).total_seconds() / 60)
+          minutes_to_writer = min(upcoming)
+          if minutes_to_writer <= 18:
+              raise SystemExit(0)
+
+          # Nothing is queued, no writer is active, and the next reserved
+          # sweep/census slot is far enough away for one bounded enrich batch.
+          print(f"0 schedule-resume running {minutes_to_writer:.1f}m-to-writer")
           PY
             if [[ ! -s /tmp/enrich-run-logs/selected-run.txt ]]; then
               echo "dispatch=false" >> "$GITHUB_OUTPUT"
@@ -429,8 +467,53 @@ jobs:
             fi
           fi
 
-      - name: Dispatch the next bounded pass
+      - name: Reserve scheduled census and sweep slots
+        id: writer-guard
         if: ${{ steps.plan.outputs.dispatch == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPOSITORY}/actions/runs?per_page=100" \
+            -o /tmp/enrich-active-runs.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          data = json.loads(Path("/tmp/enrich-active-runs.json").read_text(encoding="utf-8"))
+          writer_ids = {426133178, 426133230, 426133266}
+          active = [
+              run for run in data.get("workflow_runs", [])
+              if int(run.get("workflow_id", 0)) in writer_ids
+              and run.get("status") in {"queued", "in_progress", "waiting", "requested"}
+          ]
+          now = datetime.now(timezone.utc)
+          deltas = []
+          for minute in (13, 47):
+              slot = now.replace(minute=minute, second=0, microsecond=0)
+              if slot <= now:
+                  slot += timedelta(hours=1)
+              deltas.append((slot - now).total_seconds() / 60)
+          minutes_to_writer = min(deltas)
+          safe = not active and minutes_to_writer > 18
+          print("safe=" + str(safe).lower())
+          print("reason=" + (
+              "no-active-writer-and-outside-reserved-slot"
+              if safe else (
+                  "another-writer-is-active-or-queued" if active
+                  else f"next-writer-slot-in-{minutes_to_writer:.1f}-minutes"
+              )
+          ))
+          PY
+
+      - name: Dispatch the next bounded pass
+        if: ${{ steps.plan.outputs.dispatch == 'true' && steps.writer-guard.outputs.safe == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
