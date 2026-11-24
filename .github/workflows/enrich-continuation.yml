@@ -54,7 +54,7 @@ jobs:
           for shard in range(5):
               print(f"drip-{shard}.txt\t{workers[shard]}")
           PY
-          while IFS=
+          while read -r filename job_id; do
             curl --fail --silent --show-error --location \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
