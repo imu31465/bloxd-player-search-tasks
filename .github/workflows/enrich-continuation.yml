@@ -71,13 +71,24 @@ jobs:
           worker_state = {}
           pause_reason = None
 
+          # GitHub log ZIP paths can vary by runner and action version.
+          # Identify each worker by the explicit shard tag in its summary,
+          # not by a guessed archive filename.
+          all_log_texts = [
+              path.read_text(encoding="utf-8", errors="replace")
+              for path in root.rglob("*.txt")
+          ]
+          all_summary_lines = [
+              line for content in all_log_texts
+              for line in content.splitlines()
+              if "bloxd enrich:" in line
+          ]
+
           for shard in active:
-              matches = list(root.rglob(f"drip ({shard}).txt"))
-              if len(matches) != 1:
-                  pause_reason = f"missing-or-ambiguous-worker-log-{shard}"
-                  break
-              content = matches[0].read_text(encoding="utf-8", errors="replace")
-              summaries = [line for line in content.splitlines() if "bloxd enrich:" in line]
+              summaries = [
+                  line for line in all_summary_lines
+                  if f"[mode=cursor shard={shard}/5]" in line
+              ]
               if len(summaries) != 1:
                   pause_reason = f"missing-or-ambiguous-summary-{shard}"
                   break
