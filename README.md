@@ -569,3 +569,23 @@ Four-shard read-only reconciliation:
 Saved cursors: 305310 / 298656 / 298617 / 298568 / 298599. All five still need to pass the current maximum ID, wrap below the initial 242336 cursor, and advance back through that boundary. The full initial pass remains incomplete.
 
 The notify-controller job succeeded and automatically dispatched [Run #41 / 45416901099](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45416901099), which is now active. The controller progress commit uses fetch/rebase/retry to avoid losing progress when another task-repository commit lands concurrently.
+
+## Five-worker live Run #48 — 2026-11-24
+
+[Enrich continuation Run #48 / 45431879918](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45431879918) completed all five worker jobs. Run #48 did **not** complete all 400 fetches on four workers: Bloxd began returning consecutive HTTP 502 responses, followed by a failed periodic session re-mint. Those workers correctly retained the first unresolved profile ID in their cursor.
+
+| Worker | fetched | changed | snapshots | gone | errors | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 400 | 3 | 0 | 197 | 319335 → 321350 |
+| 1 | 381 | 381 | 381 | 0 | 8 | 219 | 312726 → 314631 |
+| 2 | 377 | 377 | 377 | 1 | 6 | 222 | 310148 → 312042 |
+| 3 | 372 | 372 | 372 | 2 | 8 | 226 | 312593 → 314468 |
+| 4 | 375 | 375 | 375 | 0 | 7 | 225 | 312654 → 314529 |
+
+Combined: 1,905 successful profile fetches/snapshots, 6 gone, and 29 failed profile requests. The failure logs show sustained Bloxd HTTP 502 responses shortly before the periodic token re-mint was rejected. The cursors remain at each worker's earliest unresolved ID; they must be retried rather than skipped.
+
+Four-shard read-only Neon reconciliation after Run #48: 2,929,038 players, 315,841 snapshots, 0 orphan snapshots, and 2,619,552 empty-cosmetics rows. Per-shard player/snapshot totals are 732,280 / 78,935; 732,164 / 78,947; 732,321 / 78,970; and 732,273 / 78,989. Maximum player IDs remain 3,053,327 / 3,053,343 / 3,053,345 / 3,053,311.
+
+### Recoverable re-mint handling
+
+The previous controller paused on the first "re-mint unavailable after retries" outcome and stopped parsing later worker summaries after the first failed worker. The controller now parses all five jobs, accepts this specific error-plus-retained-cursor case as recoverable, and continues from the earliest unresolved ID. Repeated failure at the same unresolved cursor still pauses after four consecutive batches. Run #49 must validate the new branch. The full-pass cycle boundary remains 242336; no worker has completed its wrap.
