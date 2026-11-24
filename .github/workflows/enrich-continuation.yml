@@ -127,6 +127,11 @@ jobs:
             read -r RUN_ID RUN_EVENT RUN_CONCLUSION < /tmp/enrich-run-logs/selected-run.txt
           fi
           export RUN_ID RUN_EVENT RUN_CONCLUSION
+          if [[ "${RUN_ID}" == "0" && "${RUN_EVENT}" == "schedule-resume" ]]; then
+            echo "dispatch=true" >> "$GITHUB_OUTPUT"
+            echo "reason=resume-idle-enrichment"
+            exit 0
+          fi
           last_processed="$(python3 -c 'import json; print(json.load(open("ENRICH_PROGRESS.json", encoding="utf-8")).get("last_run_id") or 0)')"
           if [[ "${RUN_ID}" -le "${last_processed}" ]]; then
             echo "dispatch=false" >> "$GITHUB_OUTPUT"
