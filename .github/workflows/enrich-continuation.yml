@@ -115,7 +115,7 @@ jobs:
             valid_archive=false
             for attempt in $(seq 1 12); do
               if curl --fail --silent --show-error --location -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPOSITORY}/actions/jobs/${job_id}/logs" -o "${archive}" \
-                && python3 -c 'import sys, zipfile; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)' "${archive}"; then
+                && python3 -c 'import re, sys, zipfile; p=sys.argv[1]; data=open(p,"rb").read(); text=data.decode("utf-8-sig","replace"); ok=zipfile.is_zipfile(p) or any(re.match(r"^\\d{4}-\\d{2}-\\d{2}T", line) for line in text.splitlines()[:20]); sys.exit(0 if ok else 1)' "${archive}"; then
                 valid_archive=true
                 break
               fi
@@ -132,14 +132,20 @@ jobs:
           import zipfile
           from pathlib import Path
           archive, output = sys.argv[1:3]
-          with zipfile.ZipFile(archive) as zf:
-              members = [name for name in zf.namelist() if name.endswith(".txt")]
-              if not members:
-                  raise SystemExit(f"job log archive has no .txt members: {archive}")
-              content = chr(10).join(
-                  zf.read(name).decode("utf-8", errors="replace")
-                  for name in members
-              )
+          if zipfile.is_zipfile(archive):
+              with zipfile.ZipFile(archive) as zf:
+                  members = [name for name in zf.namelist() if name.endswith(".txt")]
+                  if not members:
+                      raise SystemExit(f"job log archive has no .txt members: {archive}")
+                  content = chr(10).join(
+                      zf.read(name).decode("utf-8", errors="replace")
+                      for name in members
+                  )
+          else:
+              # GitHub may serve a single-job log as plain text instead of ZIP.
+              content = Path(archive).read_text(encoding="utf-8-sig", errors="replace")
+              if not content.strip():
+                  raise SystemExit(f"job log response is empty: {archive}")
           Path(output).write_text(content, encoding="utf-8")
           PY
           done < /tmp/enrich-run-logs/jobs.txt
