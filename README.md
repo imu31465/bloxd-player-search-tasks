@@ -475,3 +475,31 @@ Source PR [#9](https://github.com/imu31465/bloxd-player-search/pull/9) was squas
 The regression suite covers empty and populated cosmetics, and the public-runner validation passed 35 unit tests plus the real four-shard PostgreSQL writer integration test in Run [45410431629](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45410431629). The merged `runner` branch was also checked by the follow-up production validation workflow.
 
 The next batch, [Run #38 / 45410345316](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45410345316), pins the merged runner SHA. The task workflow now uses `--limit 600` rather than 1,000 because empty-cosmetics records no longer consume HEAD probes; the 400 social-fetch cap, one probe worker, and 0.7-second inter-fetch delay remain unchanged. Accept this smaller window only after the live batch proves 400 fetches per worker without errors/429 or candidate shortage.
+
+## Verified Enrichment Run #38 — 2026-11-24
+
+[Run #38 / 45410345316](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45410345316) completed successfully on the merged optimized source runner SHA `02c7174de89055c7363d2a143be009e57ac0ff36`. All five worker jobs fetched/changed 400 profiles each and wrote 400 snapshots each. No worker reported a fetch error or probe HTTP 429.
+
+| Worker | fetched | snapshots | gone | errors | probe429 | pending | cursor | elapsed |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 0 | 0 | 0 | 600 | 299290 → 301290 | 407s |
+| 1 | 400 | 400 | 1 | 0 | 0 | 599 | 292636 → 294646 | 562s |
+| 2 | 400 | 400 | 2 | 0 | 0 | 598 | 292567 → 294577 | 544s |
+| 3 | 400 | 400 | 0 | 0 | 0 | 600 | 292558 → 294558 | 451s |
+| 4 | 400 | 400 | 2 | 0 | 0 | 598 | 292564 → 294579 | 448s |
+
+Aggregate: 2,000 fetched/updated profiles and snapshots, 5 gone, zero errors, zero probe429. Every worker log confirms `probing 0 enriched players (1000 empty-cosmetics rows bypassed)`: all 1,000 rows in each selection window had empty cosmetics and therefore skipped the now-redundant HEAD probes.
+
+**Run #38 still used `--limit 1000`, not 600.** It was dispatched before the `--limit 600` workflow change was pushed. The first live run using 600 is Run #39 / [45412378928](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45412378928). The observed 407–562 second worker durations are already materially lower than the 564–634 seconds in Run #37, before shrinking the window to 600.
+
+Four-shard read-only reconciliation after Run #38:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 732,280 | 74,126 | 659,739 | 3,053,327 | 0 |
+| 02 | 732,164 | 74,133 | 659,639 | 3,053,343 | 0 |
+| 03 | 732,321 | 74,164 | 659,724 | 3,053,345 | 0 |
+| 04 | 732,273 | 74,187 | 659,655 | 3,053,311 | 0 |
+| **Total** | **2,929,038** | **296,610** | **2,638,757** | — | **0** |
+
+All five saved cursors remain above the 242336 full-cycle start boundary. The initial full-cursor pass is not complete.
