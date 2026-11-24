@@ -11,6 +11,7 @@ on:
       - ".github/workflows/census.yml"
       - ".github/workflows/sweep.yml"
       - ".github/workflows/enrich.yml"
+      - ".github/workflows/enrich-continuation.yml"
       - ".github/workflows/name-scan.yml"
       - ".github/workflows/notification-smoke.yml"
       - "CUTOVER.json"
