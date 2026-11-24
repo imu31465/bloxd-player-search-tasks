@@ -589,3 +589,33 @@ Four-shard read-only Neon reconciliation after Run #48: 2,929,038 players, 315,8
 ### Recoverable re-mint handling
 
 The previous controller paused on the first "re-mint unavailable after retries" outcome and stopped parsing later worker summaries after the first failed worker. The controller now parses all five jobs, accepts this specific error-plus-retained-cursor case as recoverable, and continues from the earliest unresolved ID. Repeated failure at the same unresolved cursor still pauses after four consecutive batches. Run #49 must validate the new branch. The full-pass cycle boundary remains 242336; no worker has completed its wrap.
+
+## Verified enrichment Run #49 — 2026-11-24
+
+[Run #49 / 45446125712](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45446125712) completed all five workers on source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755` (PR #10). Each worker selected 600 empty-cosmetics rows, skipped all HEAD probes, and completed 400 profile fetches.
+
+| Worker | fetched | snapshots | gone | errors | probe429 | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 199 | 321350 → 323360 |
+| 1 | 400 | 400 | 1 | 0 | 0 | 199 | 314631 → 316636 |
+| 2 | 400 | 400 | 0 | 0 | 0 | 200 | 312042 → 314042 |
+| 3 | 400 | 400 | 0 | 1 | 0 | 200 | 314468 → 314733 |
+| 4 | 400 | 400 | 5 | 0 | 0 | 195 | 314529 → 316554 |
+
+Combined: 2,000 successful fetches/snapshots, 7 gone, one fetch error (HTTP 502). The failed worker3 ID is retained at cursor 314733; controller retry_count is 1. No cursor was moved past the unresolved ID.
+
+Four-shard read-only reconciliation after Run #49:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 732,280 | 79,435 | 654,439 | 3,053,327 | 0 |
+| 02 | 732,164 | 79,444 | 654,337 | 3,053,343 | 0 |
+| 03 | 732,321 | 79,473 | 654,418 | 3,053,345 | 0 |
+| 04 | 732,273 | 79,489 | 654,361 | 3,053,311 | 0 |
+| **Total** | **2,929,038** | **317,841** | **2,617,555** | — | **0** |
+
+The persisted worker cursors are 323360 / 316636 / 314042 / 314733 / 316554; the legacy cursor remains 242336. The full five-worker cycle is still in progress; none has wrapped.
+
+## Census replay Run #11 — 2026-11-24
+
+Census Run #10 / 45385928930 failed closed on 11 and 4 unresolved probe IDs in two shards, leaving `census_frontier_cursor=3013345` unchanged. After source PR #10 (merged runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`) added the unresolved-ID second pass, one targeted manual replay was dispatched as [Run #11 / 45448123052](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45448123052). It processes the same retained frontier range; no manual cursor advance was made. All four scan receipts and the finalizer must pass before the frontier is accepted. Census and enrichment share `player-search-writers`; the enrichment controller waits for census completion.
