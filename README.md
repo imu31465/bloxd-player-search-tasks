@@ -349,3 +349,24 @@ Independent post-run read-only reconciliation across all four Neon shards:
 The first controller attempt after Run #12 paused safely with missing-or-ambiguous-summary-0 because the run-log ZIP parsing did not identify the worker logs. No data was rolled back: Run #12 had already saved all five cursors and its database writes were independently reconciled. The controller was rebuilt to query the workflow-run jobs list, map the exact drip (0..4) job IDs, and download each job's plain-text log directly. Progress state was restored with all five verified Run #12 summaries and end cursors; the status is running, with no completed partitions yet.
 
 The rebuilt controller at task HEAD e3c95189a4457e6abfd3303418fb8e907ae20510 passed public validation [Run #49 / 45328454114](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45328454114), all seven jobs including workflow YAML parsing and the source/Altare PostgreSQL integration suites. The direct job-log parser will be live-verified by the next chained run; the chain must pause again on missing summaries, HTTP 429s, fetch errors, or unexpected aborts.
+## Five-worker live Run #14 — 2026-11-24
+
+[Enrich continuation Run #14 / 45331636181](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45331636181) completed successfully. The run was launched by the controller after Run #13. All five workers passed live SP mint validation and the 64-bucket/four-shard guard.
+
+| Worker | fetched | changed | snapshots | gone | errors | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 400 | 1 | 0 | 9,599 | 257090 → 259095 |
+| 1 | 400 | 400 | 400 | 2 | 0 | 9,598 | 250386 → 252396 |
+| 2 | 400 | 400 | 400 | 1 | 0 | 9,599 | 250387 → 252392 |
+| 3 | 400 | 400 | 400 | 0 | 0 | 9,600 | 250358 → 252368 |
+| 4 | 400 | 400 | 400 | 0 | 0 | 9,600 | 250369 → 252369 |
+
+Combined: 2,000 fetches, 2,000 changed profiles/snapshots, 4 gone, and 0 fetch errors. Each worker reached the intentional 400-fetch cap; this is another bounded batch, not full-pass completion.
+
+Post-run read-only Neon reconciliation across all four shards: 2,925,497 players, 254,149 snapshots, 0 orphan snapshots, and 2,677,526 rows with empty cosmetics JSON. Max player IDs by shard are 3,053,327 / 3,053,343 / 3,053,345 / 3,053,311. Persisted cursors: worker0 259095, worker1 252396, worker2 252392, worker3 252368, worker4 252369 (legacy 242336).
+
+## Continuation trigger matching repair — 2026-11-24
+
+Run #14 was started with workflow_dispatch and run-name 'Enrich continuation'. The controller had been filtered by static workflow name 'enrich', so GitHub did not trigger it again after Run #14. The controller was changed to listen for all workflow_run completions and filter its job by the stable enrich workflow ID 426133266. This avoids depending on run-name. Validation [Run #50 / 45357867951](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45357867951) passed all seven jobs, including every workflow YAML file.
+
+ENRICH_PROGRESS.json was advanced from the verified Run #14 summaries and current Neon cursors. The next bounded enrich run is required to live-test the stable-workflow-ID controller and must not be treated as completion.
