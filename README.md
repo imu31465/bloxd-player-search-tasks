@@ -395,3 +395,29 @@ Four-shard read-only Neon reconciliation after Run #15: 2,925,497 players, 256,1
 ### Continuation resilience repair
 
 The first post-run controller delivery was not observed after Run #15, despite the stable workflow ID filter. The controller was hardened in two ways: isolated fetch failures now retry from the unresolved cursor and pause only after the same cursor fails in four consecutive batches; and a five-minute scheduled poll checks for completed, unprocessed enrich runs when GitHub omits a workflow_run delivery. Manual one-off force-ID runs remain excluded from the unattended chain. Public-runner workflow validation passed after the initial controller repair; the follow-up revision is being validated.
+
+## Verified Run #16, source retry fix, and faster probe window — 2026-11-24
+
+[Enrich Run #16 / 45362875074](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45362875074) completed successfully on all five workers using the 2,000-row probe window. The workers reached the unchanged per-worker 400 social-fetch cap in 618–712 seconds; aggregate results were 1,999 updated profiles/snapshots, 7 gone profiles, zero fetch errors, and zero probe HTTP 429s. Worker cursors advanced to 263115 / 256426 / 256407 / 256368 / 256384.
+
+Four-shard read-only reconciliation after Run #16: 2,925,497 players, 258,148 snapshots, and zero orphan snapshots. Per-shard snapshots: 64,508 / 64,525 / 64,550 / 64,565. Per-shard player counts remain 731,408 / 731,311 / 731,429 / 731,349. The full first pass remains in progress: all five cursors are still above the 242336 start boundary and no worker is marked complete.
+
+### Source retry correctness fix
+
+PR [#8](https://github.com/imu31465/bloxd-player-search/pull/8) was independently validated on the public runner and squash-merged to source `runner` at `26bb43760c1344f42cb4238088d3cf0efcfc9108`. A recent per-player `err` journal record previously suppressed the retry for 10 minutes without retaining the player ID in the cursor's unresolved set. The scan could therefore advance past that player before its retry cooldown expired. The merged fix retains recent error IDs as pending until they can be retried. Its focused regression test and all 33 unit tests passed in public-runner validation Run `45364269043`; the merged runner and production validation completed in Run `45364571343`.
+
+### Continuation reliability
+
+The continuation controller now:
+- accepts GitHub job-log responses in either ZIP or plain-text form;
+- waits/retries when a job log is not immediately available;
+- deduplicates workflow-run and scheduled-poll events using the processed run ID;
+- handles isolated fetch errors and probe-429 storms with bounded same-cursor retries;
+- permits cooldown-deferred rows to remain pending;
+- refuses to mark a worker complete until it has wrapped below 242336, returned through the boundary, and has zero errors, probe429s, and pending rows.
+
+Controller implementation at `650c9fb2bd8c34625b510b7c04d4fff08283e597` passed public-runner validation Run `45365950745`. The Run #16 completion was processed by controller job Run `45365691474`, which updated `ENRICH_PROGRESS.json` and dispatched the next run. A five-minute scheduled poll and a push bootstrap are also configured as recovery paths.
+
+### Probe-window optimization
+
+Run #16 confirms that a 2,000-row probe window is substantially larger than the number needed to reach the unchanged 400-fetch cap: each worker left 1,375–1,600 candidates unprobed after hitting the cap. The workflow now reduces the next run's probe window to 1,000 rows, preserving the 400 fetch cap, one probe worker, three 429 cooldown rounds, and 0.7-second inter-fetch delay. This provides a 2.5× candidate buffer at the measured density while halving the HEAD-probe volume compared with 2,000. Run #17 still uses the already-started 2,000-row configuration; verify all five workers on the next run before accepting the 1,000-row setting. Any candidate shortage, probe429, or error pattern requires restoring the previous window or further tuning.
