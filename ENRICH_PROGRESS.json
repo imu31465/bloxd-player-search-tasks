@@ -1,12 +1,83 @@
 {
-  "status": "paused",
+  "status": "running",
   "started_at": "2026-11-24T04:10:08Z",
   "starting_run_id": 45324488471,
   "total_runs_observed": 1,
   "completed_shards": [],
   "last_run_id": 45324488471,
-  "last_seen_at": "2026-11-24T04:38:30.603023+00:00",
-  "latest_workers": {},
-  "last_pause_reason": "missing-or-ambiguous-summary-0",
-  "note": "One full cursor pass is complete for a shard only when its enrichment summary has no pending/abort/error and its cursor wraps from a higher ID to 1. The workflow-run continuation controller resumes only unfinished shards, and pauses on probe429 or fetch errors."
+  "last_seen_at": "2026-11-24T04:38:30Z",
+  "latest_workers": {
+    "0": {
+      "cursor_start": 253070,
+      "cursor_end": 255080,
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 2,
+      "err": 0,
+      "probe429": 0,
+      "skipped": 0,
+      "pending": 9598,
+      "abort_reason": "fetch cap 400 reached",
+      "summary": "ok 400, changed 400 (name 34 colour 400 cosmetics 400 games 20), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 9598; cursor 253070->255080; ABORTED (fetch cap 400 reached)"
+    },
+    "1": {
+      "cursor_start": 246346,
+      "cursor_end": 248361,
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 2,
+      "err": 0,
+      "probe429": 0,
+      "skipped": 0,
+      "pending": 9598,
+      "abort_reason": "fetch cap 400 reached",
+      "summary": "ok 400, changed 400 (name 46 colour 400 cosmetics 399 games 23), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 9598; cursor 246346->248361; ABORTED (fetch cap 400 reached)"
+    },
+    "2": {
+      "cursor_start": 246357,
+      "cursor_end": 248377,
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 4,
+      "err": 0,
+      "probe429": 0,
+      "skipped": 0,
+      "pending": 9596,
+      "abort_reason": "fetch cap 400 reached",
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 397 name 52 games 36 ranks 1), refreshed 400, snapshots 400, gone 4, err 0, skipped 0, pending 9596; cursor 246357->248377; ABORTED (fetch cap 400 reached)"
+    },
+    "3": {
+      "cursor_start": 246353,
+      "cursor_end": 248358,
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 1,
+      "err": 0,
+      "probe429": 0,
+      "skipped": 0,
+      "pending": 9599,
+      "abort_reason": "fetch cap 400 reached",
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 398 name 52 games 23 ranks 1), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 9599; cursor 246353->248358; ABORTED (fetch cap 400 reached)"
+    },
+    "4": {
+      "cursor_start": 246359,
+      "cursor_end": 248364,
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 1,
+      "err": 0,
+      "probe429": 0,
+      "skipped": 0,
+      "pending": 9599,
+      "abort_reason": "fetch cap 400 reached",
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 400 name 52 games 20 ranks 1), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 9599; cursor 246359->248364; ABORTED (fetch cap 400 reached)"
+    }
+  },
+  "last_pause_reason": null,
+  "note": "Run #12 is independently verified and the direct-by-job-ID log reader replaces the earlier archive-path parser. Resume from the five saved cursor end values; do not treat the 400-fetch cap as full completion. The first full pass ends only when each worker cursor wraps below its saved high-water mark. Any HTTP 429, fetch error, missing log, or unexpected abort pauses the chain."
 }
