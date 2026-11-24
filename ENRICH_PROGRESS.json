@@ -59,7 +59,7 @@
     }
   },
   "last_pause_reason": null,
-  "note": "Run #15 (45358162549) verified: all five workers passed live SP mint validation and the four-shard storage-map check; 2,000 profile fetches and 2,000 snapshots were written, with 8 gone and one transient fetch error at the unresolved cursor 253296. The cursor is retained there for retry. The controller now tolerates up to three consecutive runs failing at the same unresolved cursor, and a five-minute scheduled poll backs up the workflow_run event. Full-pass completion still requires each worker to wrap below 242336 and return to or beyond that boundary.",
+  "note": "Run #17 (45365831207) verified on merged source runner 26bb43760c1344f42cb4238088d3cf0efcfc9108: all five workers fetched/changed 400 each, 2,000 snapshots, 13 gone, zero errors and zero probe429. Cursors: 265130 / 258431 / 258427 / 258383 / 258399; no worker has wrapped below the 242336 start boundary. Four-shard reconciliation after Run17: 2,925,497 players, 260,148 snapshots, zero orphan snapshots, 2,671,561 empty-cosmetics rows. Controller processed Run17 and dispatched Run18. The next workflow revision uses --limit 1000 with the existing 400 fetch cap, 0.7s spacing, and one probe worker; 1000-row setting passed public workflow validation but awaits live result. Controller also has a five-minute scheduled poll, successful-run fast path, explicit token-dispatched controller wake, and retries up to three consecutive workflow-level failures before pausing.",
   "worker_cycles": {
     "0": {
       "start_cursor": 242336,
