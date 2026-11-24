@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   continue:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success') || github.event.workflow_run.workflow_id == 426133178 || github.event.workflow_run.workflow_id == 426133230 }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -38,6 +38,7 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_EVENT: ${{ github.event.workflow_run.event }}
           RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
           EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
@@ -126,7 +127,18 @@ jobs:
             fi
             read -r RUN_ID RUN_EVENT RUN_CONCLUSION < /tmp/enrich-run-logs/selected-run.txt
           fi
-          export RUN_ID RUN_EVENT RUN_CONCLUSION
+          export RUN_ID RUN_EVENT RUN_CONCLUSION RUN_WORKFLOW_ID
+          if [[ "${RUN_WORKFLOW_ID}" == "426133178" || "${RUN_WORKFLOW_ID}" == "426133230" ]]; then
+            python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          progress = json.loads(Path("ENRICH_PROGRESS.json").read_text(encoding="utf-8"))
+          resume = progress.get("status") == "running"
+          print("dispatch=" + str(resume).lower())
+          print("reason=external-writer-completed" if resume else "reason=full-pass-not-running")
+          PY
+            exit 0
+          fi
           if [[ "${RUN_ID}" == "0" && "${RUN_EVENT}" == "schedule-resume" ]]; then
             echo "dispatch=true" >> "$GITHUB_OUTPUT"
             echo "reason=resume-idle-enrichment"
