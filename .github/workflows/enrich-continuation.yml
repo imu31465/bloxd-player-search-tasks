@@ -33,9 +33,34 @@ jobs:
           curl --fail --silent --show-error --location \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${REPOSITORY}/actions/runs/${RUN_ID}/logs" \
-            -o /tmp/enrich-run-logs.zip
-          unzip -q /tmp/enrich-run-logs.zip -d /tmp/enrich-run-logs
+            "https://api.github.com/repos/${REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+            -o /tmp/enrich-run-logs/jobs.json
+
+          python3 - <<'PY' > /tmp/enrich-run-logs/jobs.tsv
+          import json
+          import re
+          from pathlib import Path
+          data = json.loads(Path("/tmp/enrich-run-logs/jobs.json").read_text(encoding="utf-8"))
+          jobs = data.get("jobs", [])
+          gates = [job for job in jobs if job.get("name") == "cutover-gate"]
+          workers = {}
+          for job in jobs:
+              match = re.fullmatch(r"drip \\(([0-4])\\)", job.get("name", ""))
+              if match:
+                  workers[int(match.group(1))] = job["id"]
+          if len(gates) != 1 or set(workers) != set(range(5)):
+              raise SystemExit("workflow run is missing the expected gate or five worker jobs")
+          print("gate.txt\\t" + str(gates[0]["id"]))
+          for shard in range(5):
+              print(f"drip-{shard}.txt\\t{workers[shard]}")
+          PY
+          while IFS=$'\\t' read -r filename job_id; do
+            curl --fail --silent --show-error --location \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPOSITORY}/actions/jobs/${job_id}/logs" \
+              -o "/tmp/enrich-run-logs/${filename}"
+          done < /tmp/enrich-run-logs/jobs.tsv
 
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
@@ -50,9 +75,9 @@ jobs:
           run_id = int(os.environ["RUN_ID"])
           run_event = os.environ["RUN_EVENT"]
 
-          all_log_text = "\n".join(
+          all_log_text = "\\n".join(
               path.read_text(encoding="utf-8", errors="replace")
-              for path in root.rglob("*.txt")
+              for path in root.glob("*.txt")
           )
           # Manual force_ids runs are intentionally one-off and must not
           # start an unattended full-corpus continuation chain.
@@ -71,23 +96,16 @@ jobs:
           worker_state = {}
           pause_reason = None
 
-          # GitHub log ZIP paths can vary by runner and action version.
-          # Identify each worker by the explicit shard tag in its summary,
-          # not by a guessed archive filename.
-          all_log_texts = [
-              path.read_text(encoding="utf-8", errors="replace")
-              for path in root.rglob("*.txt")
-          ]
-          all_summary_lines = [
-              line for content in all_log_texts
-              for line in content.splitlines()
-              if "bloxd enrich:" in line
-          ]
-
           for shard in active:
+              log_path = root / f"drip-{shard}.txt"
+              if not log_path.is_file():
+                  pause_reason = f"missing-worker-log-{shard}"
+                  break
+              content = log_path.read_text(encoding="utf-8", errors="replace")
               summaries = [
-                  line for line in all_summary_lines
-                  if f"[mode=cursor shard={shard}/5]" in line
+                  line for line in content.splitlines()
+                  if "bloxd enrich:" in line
+                  and f"[mode=cursor shard={shard}/5]" in line
               ]
               if len(summaries) != 1:
                   pause_reason = f"missing-or-ambiguous-summary-{shard}"
