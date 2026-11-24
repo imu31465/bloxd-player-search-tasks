@@ -248,3 +248,32 @@ Next attempt must print `Storage map validated: 64 buckets, 16 per shard; all fo
 Task enrich Run #10 (`45277205885`) started after the 64-bucket correction. Fail-closed cutover gate and common-source `prepare` both succeeded; the pinned private runner SHA is `a2f3acd4770696a93f328e3ae2dbe743349722ac`. All five matrix workers completed private sparse clone, Python setup, dependency installation, and live SP-token resolution; all five `Drip refresh partition i/5` steps are now running. Since each step passed the pre-DB storage-map guard before reaching its running state, the earlier 63-entry map error is not recurring.
 
 At the latest check, no new per-worker cursor keys or snapshot count changes were yet visible in read-only Neon queries; this is an in-progress A-wave, not a completion. Wait for all five per-worker summaries before accepting, then reconcile cursor 0..4 and all four database totals.
+
+
+## Five-worker live Run #10 — 2026-11-24 (verified)
+
+[Run #10 / 45277205885](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45277205885) completed successfully at the Actions level; all five worker jobs and both setup jobs succeeded. All five logs explicitly show the 64-bucket configuration guard passed and the enrichment process ran.
+
+Per-worker results:
+
+| Worker | fetched/ok | changed + snapshots | gone | errors | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 391 | 3 | 0 | 8,368 | 250,500 |
+| 1 | 400 | 400 | 1 | 0 | 9,599 | 244,341 |
+| 2 | 400 | 400 | 4 | 0 | 9,596 | 244,357 |
+| 3 | 400 | 400 | 2 | 0 | 9,598 | 244,348 |
+| 4 | 400 | 400 | 2 | 0 | 9,598 | 244,349 |
+
+Combined: 2,000 social fetches, 1,991 changed profiles/snapshots, 12 gone, 0 errors. Each worker reached its intentional `--fetch-cap 400`, so the script summary says `ABORTED (fetch cap 400 reached)` while the GitHub job concludes success. This is bounded, resumable progress, not a completed full-corpus enrichment.
+
+Independent read-only Neon reconciliation after Run #10:
+- Players: `2,925,497` total.
+- Snapshots: `246,149` total.
+- Orphan snapshots: `0`.
+- Per-shard players: shard01 `731,408`; shard02 `731,311`; shard03 `731,429`; shard04 `731,349`.
+- Per-shard snapshots: shard01 `61,504`; shard02 `61,533`; shard03 `61,553`; shard04 `61,559`.
+- Control DB cursor keys: `census_enrich_cursor_0=250500`, `_1=244341`, `_2=244357`, `_3=244348`, `_4=244349`; legacy cursor remains `242336`.
+
+The count increase since the earlier baseline is also reconciled with independent scheduled jobs: census Run #9 added 22,714 new players across its three successfully published scan partitions (scan 0 rejected six unresolved probes and did not publish partial progress); social sweep Run #9 recorded 631 snapshots across its five workers; enrichment Run #10 recorded 1,991 snapshots. Total snapshot delta = 631 + 1,991 = 2,622, matching `243,527 → 246,149`. No orphan rows were created.
+
+Next: continue the bounded five-worker catch-up from the five stored cursors. Keep the 400-per-worker guard until the backlog is drained; do not mark the corpus fully enriched just because Actions is green.
