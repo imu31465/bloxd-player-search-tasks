@@ -116,9 +116,11 @@ jobs:
                   pause_reason = f"worker-{shard}-has-pending-without-fetch-cap"
                   break
 
-              # A clean cursor wrap proves this worker traversed its whole
-              # remaining ID space from the saved starting point.
-              if end < start and pending_count == 0 and abort_reason is None:
+              # The query wraps only after it has exhausted IDs above the
+              # saved cursor. A lower end cursor therefore proves this worker
+              # reached the end of its initial pass. Pending IDs in the newly
+              # wrapped low-ID batch belong to the next cycle, not this pass.
+              if end < start:
                   completed.add(shard)
 
           progress["total_runs_observed"] = int(progress.get("total_runs_observed", 0)) + 1
