@@ -2,6 +2,7 @@ name: enrich-continuation
 
 on:
   workflow_run:
+    workflows: ["enrich", "Enrich", "Enrich continuation"]
     types: [completed]
   schedule:
     - cron: "*/5 * * * *"
