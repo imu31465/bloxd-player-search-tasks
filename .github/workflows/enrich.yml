@@ -186,7 +186,12 @@ jobs:
           PY
           # Five independent modulo partitions use isolated cursor keys and
           # runner IPs; this mirrors the already-proven 5-worker social sweep.
-          ARGS=(--limit 2000 --probe-workers 1 --probe-retry-rounds 3 \
+          # Run 16 showed every worker hit the 400 social-fetch cap within
+          # roughly 620–712 seconds, while 1,375–1,600 candidates remained
+          # unprobed in each 2,000-row window. A 1,000-row window keeps a
+          # 2.5x fetch-cap buffer at the measured candidate density and halves
+          # redundant HEAD probes; monitor every worker for candidate shortage.
+          ARGS=(--limit 1000 --probe-workers 1 --probe-retry-rounds 3 \
                 --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400 \
                 --shard "${{ matrix.shard }}/5")
           if [ -n "$FORCE_IDS_INPUT" ]; then
