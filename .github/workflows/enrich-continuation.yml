@@ -2,7 +2,6 @@ name: enrich-continuation
 
 on:
   workflow_run:
-    workflows: ["enrich"]
     types: [completed]
 
 permissions:
@@ -11,7 +10,7 @@ permissions:
 
 jobs:
   continue:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
