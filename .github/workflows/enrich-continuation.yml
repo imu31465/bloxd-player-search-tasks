@@ -143,9 +143,33 @@ jobs:
                   "summary": line.strip()[-1200:],
               }
 
-              if err_count or probe429_count:
-                  pause_reason = f"worker-{shard}-reported-errors-or-probe429"
+              # Keep retry state per worker. A single transient profile-fetch
+              # failure must not strand the other four workers or stop the
+              # full pass: cursor_end is the earliest unresolved ID and the
+              # next bounded run resumes there. Stop only when the same
+              # unresolved cursor fails repeatedly.
+              cycle = progress.setdefault("worker_cycles", {}).setdefault(
+                  str(shard),
+                  {"start_cursor": 242336, "wrapped": False, "completed": False},
+              )
+              if probe429_count:
+                  pause_reason = f"worker-{shard}-reported-probe429"
                   break
+              if err_count:
+                  if int(cycle.get("retry_cursor", -1)) == end:
+                      retry_count = int(cycle.get("retry_count", 0)) + 1
+                  else:
+                      retry_count = 1
+                  cycle["retry_cursor"] = end
+                  cycle["retry_count"] = retry_count
+                  if retry_count > 3:
+                      pause_reason = f"worker-{shard}-same-cursor-failed-{retry_count}-runs"
+                      break
+              else:
+                  cycle.pop("retry_cursor", None)
+                  cycle.pop("retry_count", None)
+
+              worker_state[str(shard)]["retry_count"] = int(cycle.get("retry_count", 0))
               if abort_reason and abort_reason != "fetch cap 400 reached":
                   pause_reason = f"worker-{shard}-aborted-{abort_reason}"
                   break
@@ -157,9 +181,6 @@ jobs:
               # high-watermark were exhausted. Continue from ID 1 until the
               # cursor returns to the original 242336 boundary; this also
               # covers the small set of unresolved rows below that old cursor.
-              cycle = progress.setdefault("worker_cycles", {}).get(str(shard))
-              if cycle is None:
-                  cycle = {"start_cursor": 242336, "wrapped": False}
               cycle_start = int(cycle.get("start_cursor", 242336))
               if end < cycle_start:
                   cycle["wrapped"] = True
