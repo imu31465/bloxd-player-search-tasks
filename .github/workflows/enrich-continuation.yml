@@ -7,6 +7,10 @@ on:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/enrich-continuation.yml"
 
 concurrency:
   group: enrich-continuation-controller
@@ -18,7 +22,7 @@ permissions:
 
 jobs:
   continue:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -108,7 +112,21 @@ jobs:
 
           while read -r filename job_id; do
             archive="/tmp/enrich-run-logs/${filename%.txt}.zip"
-            curl --fail --silent --show-error --location -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPOSITORY}/actions/jobs/${job_id}/logs" -o "${archive}"
+            valid_archive=false
+            for attempt in $(seq 1 12); do
+              if curl --fail --silent --show-error --location -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPOSITORY}/actions/jobs/${job_id}/logs" -o "${archive}" \
+                && python3 -c 'import sys, zipfile; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)' "${archive}"; then
+                valid_archive=true
+                break
+              fi
+              echo "Log archive for job ${job_id} is not ready (attempt ${attempt}/12); retrying in 5s." >&2
+              sleep 5
+            done
+            if [[ "${valid_archive}" != true ]]; then
+              echo "Unable to retrieve a valid ZIP log archive for job ${job_id}." >&2
+              head -c 1000 "${archive}" >&2 || true
+              exit 1
+            fi
             python3 - "${archive}" "/tmp/enrich-run-logs/${filename}" <<'PY'
           import sys
           import zipfile
