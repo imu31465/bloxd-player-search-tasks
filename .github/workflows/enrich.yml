@@ -33,6 +33,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: read
 
 jobs:
@@ -226,3 +227,16 @@ jobs:
               }]
             }' \
             > /dev/null
+
+  notify-controller:
+    needs: [cutover-gate, prepare, drip]
+    if: ${{ always() && !cancelled() && needs.cutover-gate.result == 'success' && needs.cutover-gate.outputs.enabled == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake continuation controller after enrichment jobs settle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh api --method POST "repos/${REPOSITORY}/actions/workflows/enrich-continuation.yml/dispatches" -f ref=main
