@@ -307,3 +307,17 @@ Independent read-only Neon reconciliation after Run #11:
 The five persisted control cursors are census_enrich_cursor_0=253070, _1=246346, _2=246357, _3=246353, and _4=246359; the legacy cursor remains 242336. Snapshot totals reconcile exactly from Run #10's 246,149 to 248,149 (+2,000). Player totals are unchanged. No orphan snapshots were created.
 
 Continue the five-worker catch-up from these saved cursors. Keep the 400-per-worker cap and do not mark full-corpus enrichment complete until unresolved work is demonstrably drained and separately reconciled.
+
+## Full-pass enrichment continuation — 2026-11-24
+
+The one-shot trigger now has a resumable full-pass controller, so catch-up does not require someone to manually push ENRICH_NOW.json after every bounded batch.
+
+- Run #12 (45324488471) was launched from the five persisted cursors after Run #11. Its five workers retain the current conservative limits: one probe worker, 10,000 rows per partition window, 400 social fetches per worker, and 0.7-second spacing.
+- .github/workflows/enrich-continuation.yml listens for completion of the enrich workflow. It downloads the completed run logs, parses each active worker's summary and cursor, and updates ENRICH_PROGRESS.json.
+- A worker is marked complete after its cursor wraps from its saved high-water mark to a lower ID, proving it reached the end of its remaining ID range. Completed workers are skipped in later runs. The controller dispatches another bounded enrich run for unfinished workers.
+- The chain pauses instead of immediately retrying when logs are missing or ambiguous, a worker reports HTTP 429, a fetch error, or an abort other than the intentional 400-fetch cap. The daily schedule remains a safe retry path. Manual force_ids runs are not auto-chained.
+- When all five worker cursors have completed their first pass, ENRICH_PROGRESS.json becomes status completed; the gate then skips normal scheduled enrichment workers. A green Actions conclusion alone is never treated as full-pass completion.
+- ENRICH_PROGRESS.json starts from the five saved cursors after Run #11 and tracks completed shards, last run, latest worker summaries, and pause reasons.
+- Public-runner validation Run #46 / 45325982606 passed all seven jobs against task HEAD a58470252b0eecc84d01c4636a2dff551778d5b0, including every workflow YAML file, both source branch test/PostgreSQL suites, Altare migration/index tests, live token mint validation, four-shard Neon read/grant checks, and production gateway checks.
+
+Read-only profiling found 2,683,506 player rows currently store an empty JSON object in cosmetics (shard counts 670,934 / 670,850 / 670,905 / 670,817). The current A-gate treats an empty cosmetics object as not yet enriched, so this is an upper-bound indication of the work the cursor may encounter, not an exact remaining-fetch count: the probe, cooldown, name-match and other skip rules still filter candidates. Keep the per-runner 400 cap until observed logs justify a change.
