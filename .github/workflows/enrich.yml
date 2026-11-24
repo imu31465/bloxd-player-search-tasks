@@ -1,4 +1,5 @@
 name: enrich
+run-name: ${{ inputs.continue_chain && 'Enrich continuation' || 'Enrich' }}
 
 on:
   push:
@@ -18,10 +19,14 @@ on:
           Comma-separated player ids to social-fetch right now, bypassing
           the A-gate skip rules - e.g. 3734 for a rename the cursor has not
           wrapped around to yet. When set, only these ids are processed
-          (the regular 25k drip is skipped) and the stored cursor is not
-          moved.
+          (the regular drip is skipped) and the stored cursor is not moved.
         required: false
         default: ""
+      continue_chain:
+        description: Internal flag used only by the verified continuation controller.
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: player-search-writers
@@ -35,9 +40,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ steps.read.outputs.enabled }}
+      completed_shards: ${{ steps.read.outputs.completed_shards }}
     steps:
       - uses: actions/checkout@v4
-      - name: Read fail-closed CUTOVER.json
+      - name: Read fail-closed CUTOVER.json and enrichment progress
         id: read
         shell: bash
         run: |
@@ -48,8 +54,16 @@ jobs:
           enabled = state.get("enabled") if isinstance(state, dict) else None
           if not isinstance(enabled, bool):
               raise SystemExit("CUTOVER.json must contain a boolean enabled field")
+          progress_path = Path("ENRICH_PROGRESS.json")
+          progress = json.loads(progress_path.read_text(encoding="utf-8")) if progress_path.exists() else {}
+          completed = progress.get("completed_shards", [])
+          if not isinstance(completed, list) or any(item not in [0, 1, 2, 3, 4] for item in completed):
+              raise SystemExit("ENRICH_PROGRESS.json completed_shards must be a list of shard indexes 0..4")
           print("enabled=" + str(enabled).lower())
+          print("completed_shards=" + ",".join(str(item) for item in sorted(set(completed))))
           PY
+      - name: Report continuation mode
+        run: echo "ENRICH_CONTINUATION=${{ inputs.continue_chain || false }}"
   prepare:
     needs: cutover-gate
     if: ${{ needs.cutover-gate.outputs.enabled == 'true' }}
@@ -78,7 +92,7 @@ jobs:
 
   drip:
     needs: [cutover-gate, prepare]
-    if: ${{ needs.cutover-gate.outputs.enabled == 'true' }}
+    if: ${{ needs.cutover-gate.outputs.enabled == 'true' && ((!inputs.force_ids && !contains(format(',{0},', needs.cutover-gate.outputs.completed_shards), format(',{0},', matrix.shard))) || (inputs.force_ids && matrix.shard == 0)) }}
     env:
       SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
     runs-on: ubuntu-latest
