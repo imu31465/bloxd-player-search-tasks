@@ -503,3 +503,41 @@ Four-shard read-only reconciliation after Run #38:
 | **Total** | **2,929,038** | **296,610** | **2,638,757** | — | **0** |
 
 All five saved cursors remain above the 242336 full-cycle start boundary. The initial full-cursor pass is not complete.
+
+## Verified Enrichment Run #39 — 2026-11-24
+
+[Run #39 / 45412378928](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45412378928) was the first live run using the 600-row selection window. It ran on the optimized source runner SHA `02c7174de89055c7363d2a143be009e57ac0ff36`. All five workers fetched/changed 400 profiles and wrote 400 snapshots each; every worker bypassed all 600 HEAD probes because the selected records had empty cosmetics.
+
+| Worker | fetched | snapshots | gone | errors | probe429 | pending | cursor | elapsed |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 199 | 301290 → 303295 | 561s |
+| 1 | 400 | 400 | 0 | 0 | 0 | 200 | 294646 → 296646 | 542s |
+| 2 | 400 | 400 | 4 | 0 | 0 | 196 | 294577 → 296597 | 432s |
+| 3 | 400 | 400 | 0 | 0 | 0 | 200 | 294558 → 296563 | 443s |
+| 4 | 400 | 400 | 2 | 0 | 0 | 198 | 294579 → 296589 | 481s |
+
+Aggregate: 2,000 fetches/snapshots, 7 gone, zero fetch errors and zero probe429. The five runtimes were 432–561 seconds. This validates the 600-row window at current candidate density; keep the 400-fetch cap and 0.7-second spacing.
+
+Four-shard read-only reconciliation, isolating snapshots written during Run #39:
+
+| Shard | Players | Snapshots written in Run #39 | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 732,280 | 502 | 659,164 | 3,053,327 | 0 |
+| 02 | 732,164 | 497 | 659,061 | 3,053,343 | 0 |
+| 03 | 732,321 | 498 | 659,144 | 3,053,345 | 0 |
+| 04 | 732,273 | 503 | 659,081 | 3,053,311 | 0 |
+| **Total** | **2,929,038** | **2,000** | **2,636,450** | — | **0** |
+
+The five saved cursors are 303295 / 296646 / 296597 / 296563 / 296589. They remain above the initial 242336 cycle boundary; full catch-up is still in progress.
+
+### Controller write-race recovery
+
+The controller successfully parsed Run #39 but its first progress push was rejected because another independent validation-workflow commit reached task-repository `main` at the same time. The bounded enrich run itself succeeded. The controller now fetches `origin/main`, rebases its progress-only commit, and retries a non-fast-forward push up to five times. Its push-triggered recovery run succeeded, persisted Run #39, and dispatched Run #40. The shared writer concurrency group remains unchanged.
+
+## Census unresolved-probe retry fix — 2026-11-24
+
+Scheduled census Run #10 / [45385928930](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45385928930) failed closed because two workers ended with 11 and 4 unresolved HEAD probes. The other two shard writers had written receipts, but the finalizer did not run. Crucially, the persisted `census_frontier_cursor` remained at 3,013,345, so the next census plan will retry the same range instead of skipping the incomplete shards.
+
+Source PR [#10](https://github.com/imu31465/bloxd-player-search/pull/10) merged to `runner` at `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Census runs now make a second pass over all unresolved IDs (including IDs below the moving-horizon tail) while preserving the horizon recheck. The append-only progress journal is summarized by each ID's latest result: a recovered error is accepted, but any ID still ending in `err`, missing coverage, or out-of-range data continues to block shard receipts. Public validation Run [45414008055](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45414008055) passed 39 unit tests, the real four-shard PostgreSQL writer integration test, the merged main/runner checks, Altare integration tests, health/login checks, and workflow YAML validation.
+
+The first enrichment run on the PR #10 runner, [Run #40 / 45414746981](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45414746981), is active. The next scheduled census will be the live test of the retry fix on the retained frontier range.
