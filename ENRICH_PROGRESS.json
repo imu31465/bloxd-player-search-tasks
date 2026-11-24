@@ -2,28 +2,42 @@
   "status": "running",
   "started_at": "2026-11-24T04:10:08Z",
   "starting_run_id": 45324488471,
-  "total_runs_observed": 3,
+  "total_runs_observed": 4,
   "completed_shards": [],
-  "last_run_id": 45331636181,
-  "last_seen_at": "2026-11-24T05:34:30Z",
+  "last_run_id": 45358162549,
+  "last_seen_at": "2026-11-24T09:07:35Z",
   "latest_workers": {
     "0": {
-      "cursor_start": 257090,
-      "cursor_end": 259095,
+      "cursor_start": 259095,
+      "cursor_end": 261115,
       "err": 0,
       "probe429": 0,
-      "pending": 9599,
+      "pending": 9600,
       "abort_reason": "fetch cap 400 reached",
       "fetched": 400,
       "changed": 400,
       "snapshots": 400,
-      "gone": 1,
+      "gone": 0,
       "skipped": 0,
-      "summary": "ok 400, changed 400 (colour 400 cosmetics 396 games 20 name 38), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 9599; cursor 257090->259095; ABORTED (fetch cap 400 reached)"
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 399 games 17 name 36), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 9600; cursor 259095->261115; ABORTED (fetch cap 400 reached)"
     },
     "1": {
-      "cursor_start": 250386,
-      "cursor_end": 252396,
+      "cursor_start": 252396,
+      "cursor_end": 253296,
+      "err": 1,
+      "probe429": 0,
+      "pending": 9596,
+      "abort_reason": "fetch cap 400 reached",
+      "fetched": 400,
+      "changed": 400,
+      "snapshots": 400,
+      "gone": 4,
+      "skipped": 0,
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 398 name 39 games 23 ranks 1), refreshed 400, snapshots 400, gone 4, err 1, skipped 0, pending 9596; cursor 252396->253296; ABORTED (fetch cap 400 reached)"
+    },
+    "2": {
+      "cursor_start": 252392,
+      "cursor_end": 254402,
       "err": 0,
       "probe429": 0,
       "pending": 9598,
@@ -33,25 +47,11 @@
       "snapshots": 400,
       "gone": 2,
       "skipped": 0,
-      "summary": "ok 400, changed 400 (colour 400 cosmetics 399 games 24 name 39 ranks 1), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 9598; cursor 250386->252396; ABORTED (fetch cap 400 reached)"
-    },
-    "2": {
-      "cursor_start": 250387,
-      "cursor_end": 252392,
-      "err": 0,
-      "probe429": 0,
-      "pending": 9599,
-      "abort_reason": "fetch cap 400 reached",
-      "fetched": 400,
-      "changed": 400,
-      "snapshots": 400,
-      "gone": 1,
-      "skipped": 0,
-      "summary": "ok 400, changed 400 (colour 400 cosmetics 399 name 47 games 21 ranks 1), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 9599; cursor 250387->252392; ABORTED (fetch cap 400 reached)"
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 399 name 45 games 20), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 9598; cursor 252392->254402; ABORTED (fetch cap 400 reached)"
     },
     "3": {
-      "cursor_start": 250358,
-      "cursor_end": 252368,
+      "cursor_start": 252368,
+      "cursor_end": 254368,
       "err": 0,
       "probe429": 0,
       "pending": 9600,
@@ -61,25 +61,25 @@
       "snapshots": 400,
       "gone": 0,
       "skipped": 0,
-      "summary": "ok 400, changed 400 (colour 400 cosmetics 398 games 19 name 56 ranks 1), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 9600; cursor 250358->252368; ABORTED (fetch cap 400 reached)"
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 400 name 42 games 17), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 9600; cursor 252368->254368; ABORTED (fetch cap 400 reached)"
     },
     "4": {
-      "cursor_start": 250369,
-      "cursor_end": 252369,
+      "cursor_start": 252369,
+      "cursor_end": 254379,
       "err": 0,
       "probe429": 0,
-      "pending": 9600,
+      "pending": 9598,
       "abort_reason": "fetch cap 400 reached",
       "fetched": 400,
       "changed": 400,
       "snapshots": 400,
-      "gone": 0,
+      "gone": 2,
       "skipped": 0,
-      "summary": "ok 400, changed 400 (colour 400 cosmetics 400 games 31 name 40), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 9600; cursor 250369->252369; ABORTED (fetch cap 400 reached)"
+      "summary": "ok 400, changed 400 (colour 400 cosmetics 397 games 33 name 40 ranks 1), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 9598; cursor 252369->254379; ABORTED (fetch cap 400 reached)"
     }
   },
   "last_pause_reason": null,
-  "note": "A worker is complete only after it has traversed above the max ID, wrapped to the low-ID range, and advanced back through the original 242336 legacy cursor boundary. This prevents missing the approximately 4,974 cosmetics-empty rows found below the legacy cursor. Run #14 is verified; Run #15 is in progress. The next-run probe window is being reduced from 10,000 to 2,000 while the 400 fetch cap and request spacing stay unchanged.",
+  "note": "Run #15 (45358162549) verified: all five workers passed live SP mint validation and the four-shard storage-map check; 2,000 profile fetches and 2,000 snapshots were written, with 8 gone and one transient fetch error at the unresolved cursor 253296. The cursor is retained there for retry. The controller now tolerates up to three consecutive runs failing at the same unresolved cursor, and a five-minute scheduled poll backs up the workflow_run event. Full-pass completion still requires each worker to wrap below 242336 and return to or beyond that boundary.",
   "worker_cycles": {
     "0": {
       "start_cursor": 242336,
@@ -89,7 +89,9 @@
     "1": {
       "start_cursor": 242336,
       "wrapped": false,
-      "completed": false
+      "completed": false,
+      "retry_cursor": 253296,
+      "retry_count": 1
     },
     "2": {
       "start_cursor": 242336,
