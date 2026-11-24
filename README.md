@@ -277,3 +277,33 @@ Independent read-only Neon reconciliation after Run #10:
 The count increase since the earlier baseline is also reconciled with independent scheduled jobs: census Run #9 added 22,714 new players across its three successfully published scan partitions (scan 0 rejected six unresolved probes and did not publish partial progress); social sweep Run #9 recorded 631 snapshots across its five workers; enrichment Run #10 recorded 1,991 snapshots. Total snapshot delta = 631 + 1,991 = 2,622, matching `243,527 → 246,149`. No orphan rows were created.
 
 Next: continue the bounded five-worker catch-up from the five stored cursors. Keep the 400-per-worker guard until the backlog is drained; do not mark the corpus fully enriched just because Actions is green.
+
+## Five-worker live Run #11 — 2026-11-24 (verified)
+
+[Task Run #11 / 45310792967](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45310792967) completed with conclusion success. The fail-closed cutover gate and common-source preparation succeeded, and all five drip matrix jobs completed. Each worker cloned the pinned private source SHA a2f3acd4770696a93f328e3ae2dbe743349722ac, derived a live 60-character Bloxd session token and passed mint validation, passed the pre-DB guard confirming exactly 64 buckets (16 per shard) and all four shard configurations, and completed 400 profile fetches with 0 fetch errors.
+
+Per-worker results (cursor values are the persisted end cursors):
+
+| Worker | fetched/ok | changed + snapshots | gone | errors | skipped | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 113 | 9,486 | 253,070 |
+| 1 | 400 | 400 | 1 | 0 | 0 | 9,599 | 246,346 |
+| 2 | 400 | 400 | 0 | 0 | 0 | 9,600 | 246,357 |
+| 3 | 400 | 400 | 1 | 0 | 0 | 9,599 | 246,353 |
+| 4 | 400 | 400 | 2 | 0 | 0 | 9,598 | 246,359 |
+
+Combined: 2,000 profile fetches, 2,000 changed profiles/snapshots, 5 gone, 0 fetch errors. All five workers reached the intentional 400-fetch cap, so the script logs say ABORTED (fetch cap 400 reached) despite successful GitHub job conclusions. This is bounded, resumable progress and **not** proof that all profiles are enriched. Worker0's skipped count is retained in the run record; its persisted cursor moved from 250500 to 253070.
+
+Independent read-only Neon reconciliation after Run #11:
+
+| Shard | Players | Snapshots | Orphan snapshots |
+|---|---:|---:|---:|
+| shard-01 | 731,408 | 62,011 | 0 |
+| shard-02 | 731,311 | 62,030 | 0 |
+| shard-03 | 731,429 | 62,048 | 0 |
+| shard-04 | 731,349 | 62,060 | 0 |
+| **Total** | **2,925,497** | **248,149** | **0** |
+
+The five persisted control cursors are census_enrich_cursor_0=253070, _1=246346, _2=246357, _3=246353, and _4=246359; the legacy cursor remains 242336. Snapshot totals reconcile exactly from Run #10's 246,149 to 248,149 (+2,000). Player totals are unchanged. No orphan snapshots were created.
+
+Continue the five-worker catch-up from these saved cursors. Keep the 400-per-worker cap and do not mark full-corpus enrichment complete until unresolved work is demonstrably drained and separately reconciled.
