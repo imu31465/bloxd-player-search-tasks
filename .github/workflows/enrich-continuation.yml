@@ -3,6 +3,13 @@ name: enrich-continuation
 on:
   workflow_run:
     types: [completed]
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: enrich-continuation-controller
+  cancel-in-progress: false
 
 permissions:
   actions: write
@@ -10,7 +17,7 @@ permissions:
 
 jobs:
   continue:
-    if: ${{ github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -25,10 +32,51 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_EVENT: ${{ github.event.workflow_run.event }}
+          EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/enrich-run-logs
+
+          # workflow_run is the fast path. A five-minute poll is the durable
+          # fallback for GitHub occasionally omitting workflow_run deliveries.
+          if [[ -z "${RUN_ID}" ]]; then
+            python3 - <<'PY' > /tmp/enrich-run-logs/selected-run.txt
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+          progress = json.loads(Path("ENRICH_PROGRESS.json").read_text(encoding="utf-8"))
+          last_run_id = int(progress.get("last_run_id") or 0)
+          repo = os.environ["REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          url = f"https://api.github.com/repos/{repo}/actions/runs?per_page=100"
+          request = urllib.request.Request(url, headers={
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          })
+          with urllib.request.urlopen(request, timeout=20) as response:
+              data = json.load(response)
+          pending = sorted(
+              (run for run in data.get("workflow_runs", [])
+               if int(run.get("workflow_id", 0)) == 426133266
+               and int(run.get("id", 0)) > last_run_id),
+              key=lambda run: (run.get("run_number", 0), run.get("id", 0)),
+          )
+          if not pending or pending[0].get("status") != "completed":
+              raise SystemExit(0)
+          run = pending[0]
+          print(f"{run['id']} {run.get('event', '')}")
+          PY
+            if [[ ! -s /tmp/enrich-run-logs/selected-run.txt ]]; then
+              echo "dispatch=false" >> "$GITHUB_OUTPUT"
+              echo "No completed unprocessed enrich run."
+              exit 0
+            fi
+            read -r RUN_ID RUN_EVENT < /tmp/enrich-run-logs/selected-run.txt
+          fi
+          echo "Processing enrich run ${RUN_ID} (event: ${RUN_EVENT})"
           curl --fail --silent --show-error --location -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" -o /tmp/enrich-run-logs/jobs.json
 
           python3 - <<'PY' > /tmp/enrich-run-logs/jobs.txt
@@ -90,6 +138,15 @@ jobs:
           # Manual force_ids runs are intentionally one-off and must not
           # start an unattended full-corpus continuation chain.
           if run_event == "workflow_dispatch" and "ENRICH_CONTINUATION=true" not in all_log_text:
+              # Mark one-off/manual force-ID runs as observed but never let
+              # them advance the unattended full-corpus cursor chain.
+              progress["last_run_id"] = run_id
+              progress["last_seen_at"] = datetime.now(timezone.utc).isoformat()
+              progress["last_ignored_run_reason"] = "manual-dispatch-not-auto-continuation"
+              progress_path.write_text(
+                  json.dumps(progress, indent=2, ensure_ascii=False) + "\\n",
+                  encoding="utf-8",
+              )
               print("dispatch=false")
               print("reason=manual-dispatch-not-auto-continuation")
               raise SystemExit(0)
