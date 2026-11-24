@@ -153,10 +153,20 @@ jobs:
                   pause_reason = f"worker-{shard}-has-pending-without-fetch-cap"
                   break
 
-              # The query wraps only after it has exhausted IDs above the
-              # saved cursor. Pending rows after a wrap are from the next pass.
-              if end < start:
+              # A first wrap only proves that IDs above the legacy
+              # high-watermark were exhausted. Continue from ID 1 until the
+              # cursor returns to the original 242336 boundary; this also
+              # covers the small set of unresolved rows below that old cursor.
+              cycle = progress.setdefault("worker_cycles", {}).get(str(shard))
+              if cycle is None:
+                  cycle = {"start_cursor": 242336, "wrapped": False}
+              cycle_start = int(cycle.get("start_cursor", 242336))
+              if end < cycle_start:
+                  cycle["wrapped"] = True
+              if cycle.get("wrapped") and end >= cycle_start:
                   completed.add(shard)
+                  cycle["completed"] = True
+              progress["worker_cycles"][str(shard)] = cycle
 
           progress["total_runs_observed"] = int(progress.get("total_runs_observed", 0)) + 1
           progress["last_run_id"] = run_id
