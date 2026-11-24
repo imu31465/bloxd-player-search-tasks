@@ -376,3 +376,22 @@ The current in-flight Run #15 still uses the previous 10,000-row probe window. S
 ## Full-cycle completion-boundary correction — 2026-11-24
 
 A further audit found 4,974 empty-cosmetics rows with player IDs below the legacy cursor 242336 (1,275 / 1,269 / 1,211 / 1,219 across the four shards). Therefore a worker must **not** be marked complete at its first cursor wrap. `ENRICH_PROGRESS.json` now tracks each worker's `start_cursor=242336` and `wrapped` state; completion is accepted only after the cursor wraps below 242336 and later advances back to or beyond 242336 without an error/429/unexpected abort. The controller was updated accordingly. This prevents missing the low-ID tail.
+## Five-worker live Run #15 — 2026-11-24
+
+[Enrich Run #15 / 45358162549](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45358162549) completed successfully across the gate, source preparation, and all five workers. Every worker passed live SP token mint validation and the 64-bucket/four-shard configuration check.
+
+| Worker | fetched | changed | snapshots | gone | errors | pending | cursor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 400 | 0 | 0 | 9,600 | 259095 → 261115 |
+| 1 | 400 | 400 | 400 | 4 | 1 | 9,596 | 252396 → 253296 |
+| 2 | 400 | 400 | 400 | 2 | 0 | 9,598 | 252392 → 254402 |
+| 3 | 400 | 400 | 400 | 0 | 0 | 9,600 | 252368 → 254368 |
+| 4 | 400 | 400 | 400 | 2 | 0 | 9,598 | 252369 → 254379 |
+
+Combined: 2,000 fetched, 2,000 changed profiles/snapshots, 8 gone, and one fetch error. Worker 1 hit a Bloxd HTTP 400 throttle during a fetch; its cursor stayed at the first unresolved ID, 253296, so that profile is retried on the next run. The other four workers had zero errors. This is a bounded batch, not full-pass completion.
+
+Four-shard read-only Neon reconciliation after Run #15: 2,925,497 players, 256,149 snapshots, and 0 orphan snapshots. Per-shard player/snapshot totals are 731,408 / 64,009; 731,311 / 64,028; 731,429 / 64,047; and 731,349 / 64,065. The worker cursors are stored in shard-01 meta: 261115 / 253296 / 254402 / 254368 / 254379, with legacy cursor 242336.
+
+### Continuation resilience repair
+
+The first post-run controller delivery was not observed after Run #15, despite the stable workflow ID filter. The controller was hardened in two ways: isolated fetch failures now retry from the unresolved cursor and pause only after the same cursor fails in four consecutive batches; and a five-minute scheduled poll checks for completed, unprocessed enrich runs when GitHub omits a workflow_run delivery. Manual one-off force-ID runs remain excluded from the unattended chain. Public-runner workflow validation passed after the initial controller repair; the follow-up revision is being validated.
