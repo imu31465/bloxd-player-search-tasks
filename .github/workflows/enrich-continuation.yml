@@ -248,7 +248,7 @@ jobs:
               cycle_start = int(cycle.get("start_cursor", 242336))
               if end < cycle_start:
                   cycle["wrapped"] = True
-              if cycle.get("wrapped") and end >= cycle_start:
+              if cycle.get("wrapped") and end >= cycle_start and err_count == 0:
                   completed.add(shard)
                   cycle["completed"] = True
               progress["worker_cycles"][str(shard)] = cycle
