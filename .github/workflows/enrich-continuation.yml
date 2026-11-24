@@ -77,6 +77,12 @@ jobs:
             read -r RUN_ID RUN_EVENT < /tmp/enrich-run-logs/selected-run.txt
           fi
           export RUN_ID RUN_EVENT
+          last_processed="$(python3 -c 'import json; print(json.load(open("ENRICH_PROGRESS.json", encoding="utf-8")).get("last_run_id") or 0)')"
+          if [[ "${RUN_ID}" -le "${last_processed}" ]]; then
+            echo "dispatch=false" >> "$GITHUB_OUTPUT"
+            echo "Enrich run ${RUN_ID} was already recorded; skipping duplicate event."
+            exit 0
+          fi
           echo "Processing enrich run ${RUN_ID} (event: ${RUN_EVENT})"
           curl --fail --silent --show-error --location -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" -o /tmp/enrich-run-logs/jobs.json
 
