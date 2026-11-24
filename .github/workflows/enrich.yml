@@ -186,7 +186,7 @@ jobs:
           PY
           # Five independent modulo partitions use isolated cursor keys and
           # runner IPs; this mirrors the already-proven 5-worker social sweep.
-          ARGS=(--limit 10000 --probe-workers 1 --probe-retry-rounds 3 \
+          ARGS=(--limit 2000 --probe-workers 1 --probe-retry-rounds 3 \
                 --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400 \
                 --shard "${{ matrix.shard }}/5")
           if [ -n "$FORCE_IDS_INPUT" ]; then
