@@ -739,3 +739,57 @@ Four-shard read-only reconciliation after Run #65:
 | **Total** | **3,001,755** | **349,821** | **2,658,493** | — | **0** |
 
 All four shards have zero orphan snapshots. The enrichment workflow remains at `--limit 600 --fetch-cap 400 --probe-workers 1 --sleep 0.7`; the shared `player-search-writers` concurrency group and reserved census/sweep writer slots are unchanged. Run #65's notify-controller wake is queued behind the existing serialized continuation controller; no writer was active at the reconciliation check. The controller remains responsible for recording Run #65 in `ENRICH_PROGRESS.json` and advancing the chain; its worker-cycle flags must remain false until the full cursor-cycle conditions are met.
+
+
+## Enrichment Runs #66–96 — 2026-11-25 (independently verified)
+
+Runs #66–96 were checked against the individual GitHub Actions worker logs. Thirty runs completed successfully; Run #80's five worker jobs succeeded but its old one-shot `notify-controller` step failed on GitHub API HTTP 502. The run is recorded separately below and is excluded from successful-run totals. The current notifier retries five times and falls back to the `workflow_run` trigger and five-minute controller poll, so this historical single-attempt failure mode is now covered.
+
+| Run | GitHub Actions run | Result | Fetched | Changed | Gone | Fetch errors | Probe 429 | Worker cursors after run (0 / 1 / 2 / 3 / 4) |
+|---:|---:|---|---:|---:|---:|---:|---:|---|
+| 66 | [45602386524](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45602386524) | success | 2,000 | 2,000 | 2 | 0 | 0 | 357510 / 350761 / 348157 / 349933 / 350689 |
+| 67 | [45604150161](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45604150161) | success | 2,000 | 2,000 | 6 | 0 | 0 | 359510 / 352766 / 350167 / 351953 / 352704 |
+| 68 | [45607739856](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45607739856) | success | 2,000 | 2,000 | 6 | 0 | 0 | 361515 / 354771 / 352172 / 353963 / 354709 |
+| 69 | [45611656869](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45611656869) | success | 2,000 | 2,000 | 7 | 0 | 0 | 363530 / 356781 / 354172 / 355968 / 356714 |
+| 70 | [45613396710](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45613396710) | success | 2,000 | 2,000 | 3 | 0 | 0 | 365530 / 358791 / 356177 / 357973 / 358719 |
+| 71 | [45617148568](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45617148568) | success | 2,000 | 2,000 | 1 | 0 | 0 | 367530 / 360796 / 358177 / 359973 / 360719 |
+| 72 | [45621459174](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45621459174) | success | 2,000 | 2,000 | 9 | 0 | 0 | 369535 / 362796 / 360202 / 361973 / 362734 |
+| 73 | [45623407205](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45623407205) | success | 2,000 | 2,000 | 5 | 1 | 0 | 371535 / 364361 / 362202 / 363988 / 364739 |
+| 74 | [45627244889](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45627244889) | success | 2,000 | 1,999 | 6 | 0 | 0 | 373535 / 366806 / 364207 / 365998 / 366744 |
+| 75 | [45631726533](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45631726533) | success | 2,000 | 2,000 | 2 | 0 | 0 | 375540 / 368806 / 366207 / 368003 / 368744 |
+| 76 | [45633734782](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45633734782) | success | 2,000 | 2,000 | 4 | 1 | 0 | 377545 / 370811 / 366432 / 370003 / 370749 |
+| 77 | [45637999247](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45637999247) | success | 1,849 | 1,844 | 4 | 0 | 0 | 379550 / 372811 / 369428 / 372018 / 372759 |
+| 78 | [45642708751](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45642708751) | success | 2,000 | 2,000 | 7 | 0 | 0 | 381555 / 374811 / 371452 / 374023 / 374764 |
+| 79 | [45645108715](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45645108715) | success | 2,000 | 2,000 | 4 | 0 | 0 | 383565 / 376811 / 373457 / 376028 / 376764 |
+| 80 | [45648805573](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45648805573) | **workflow failed after workers** | 2,000 | 2,000 | 4 | 0 | 0 | No cursor advancement recorded by the controller |
+| 81 | [45651910011](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45651910011) | success | 2,000 | 2,000 | 4 | 0 | 0 | 387575 / 380811 / 377467 / 380048 / 380769 |
+| 82 | [45653707101](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45653707101) | success, partial fetch due re-mint throttling | 1,398 | 1,398 | 6 | 43 | 0 | 388700 / 382036 / 378842 / 381668 / 382449 |
+| 83 | [45657730204](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45657730204) | success | 2,000 | 2,000 | 6 | 0 | 0 | 390700 / 384046 / 380852 / 383678 / 384454 |
+| 84 | [45668509722](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45668509722) | success | 2,000 | 2,000 | 5 | 0 | 0 | 392705 / 386046 / 382852 / 385698 / 386454 |
+| 85 | [45672938848](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45672938848) | success | 2,000 | 2,000 | 9 | 0 | 0 | 394720 / 388061 / 384862 / 387703 / 388454 |
+| 86 | [45674883267](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45674883267) | success | 2,000 | 2,000 | 7 | 0 | 0 | 396730 / 390066 / 386867 / 389713 / 390464 |
+| 87 | [45678712271](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45678712271) | success | 2,000 | 2,000 | 4 | 0 | 0 | 398735 / 392066 / 388872 / 391713 / 392474 |
+| 88 | [45683073747](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45683073747) | success | 2,000 | 2,000 | 8 | 0 | 0 | 400740 / 394076 / 390882 / 393733 / 394479 |
+| 89 | [45684957441](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45684957441) | success | 2,000 | 2,000 | 9 | 0 | 0 | 402750 / 396091 / 392892 / 395738 / 396494 |
+| 90 | [45688658903](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45688658903) | success | 2,000 | 2,000 | 9 | 0 | 0 | 404760 / 398111 / 394902 / 397738 / 398509 |
+| 91 | [45692888008](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45692888008) | success | 2,000 | 2,000 | 3 | 0 | 0 | 406760 / 400111 / 396907 / 399743 / 400514 |
+| 92 | [45694764797](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45694764797) | success | 2,000 | 2,000 | 6 | 0 | 0 | 408765 / 402116 / 398912 / 401743 / 402534 |
+| 93 | [45698306511](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45698306511) | success | 2,000 | 2,000 | 9 | 0 | 0 | 410785 / 404136 / 400917 / 403748 / 404544 |
+| 94 | [45702303606](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45702303606) | success | 2,000 | 2,000 | 5 | 0 | 0 | 412785 / 406136 / 402917 / 405768 / 406549 |
+| 95 | [45704070188](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45704070188) | success | 2,000 | 2,000 | 5 | 0 | 0 | 414795 / 408141 / 404927 / 407768 / 408549 |
+| 96 | [45707474147](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45707474147) | success | 2,000 | 2,000 | 8 | 0 | 0 | 416800 / 410156 / 406942 / 409768 / 410554 |
+| **Successful-run totals (30 runs)** | — | — | **59,247** | **59,241** | **169** | **45** | **0** | — |
+
+The 45 fetch errors were confined to Runs #73 (1), #76 (1), and #82 (43). Run #82's worker logs explicitly classify the abort as re-mint unavailable after retries (`BloxdThrottled`) and retain the unprocessed candidates for later passes. Runs #83–96 all completed with zero fetch errors and zero probe 429s. This establishes healthy later batches, but does not by itself prove every earlier failed profile ID was eventually refreshed; the final per-ID retry reconciliation is still required.
+
+Four-shard read-only reconciliation after Run #96 (queries completed after all five worker jobs reported success):
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 757,800 | 102,761 | 656,727 | 3,167,311 | 0 |
+| 02 | 757,447 | 102,763 | 656,395 | 3,167,327 | 0 |
+| 03 | 757,756 | 102,799 | 656,633 | 3,167,343 | 0 |
+| 04 | 757,805 | 102,824 | 656,684 | 3,167,345 | 0 |
+| **Total** | **3,030,808** | **411,147** | **2,626,439** | — | **0** |
+
+The directly observed shard-01 cursor values after Run #96 are **416800 / 410156 / 406942 / 409768 / 410554**. Original cycle boundary remains 242336. None of the workers has yet reached the current maximum ID near 3.17 million, wrapped below the boundary, and advanced back through it; all five full-cycle flags must remain incomplete. Run #96 is independently verified from its five worker logs, but at the moment this section was written the continuation controller had not yet caught it up in `ENRICH_PROGRESS.json`: controller run [45708894579](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45708894579) was waiting for the next safe census/sweep writer window. Do not manually dispatch a writer or alter the reserved schedule while that serialized controller is active.
