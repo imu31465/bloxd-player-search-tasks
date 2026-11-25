@@ -805,3 +805,33 @@ All 84 journal IDs were cross-checked against the four player and snapshot datab
 ### Forward-scan workload measured after Run #96
 
 A read-only count using the five actual cursor predicates (`id >= cursor AND id % 5 = worker`) across all four shards found **2,620,803 remaining rows** in the current forward scan: worker0 523,101; worker1 524,276; worker2 524,796; worker3 524,127; worker4 524,503. Every row in these five ranges currently has empty cosmetics, so each remains an unconditional profile-fetch candidate. This is the current forward-scan remainder only; the low-ID wraparound range and explicit retry verification remain additional completion conditions.
+
+
+## Enrichment Run #97 — 2026-11-25 UTC / 2026-11-26 JST
+
+[Run #97 / 45711497601](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45711497601) completed successfully on the pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Gate, prepare, all five worker jobs, and the notify-controller job succeeded. Every worker fetched and changed exactly 400 profiles; all five jobs stopped only at the intended fetch-cap boundary.
+
+| Worker | Fetched | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 199 | 416800 → 418805 |
+| 1 | 400 | 400 | 1 | 0 | 0 | 199 | 410156 → 412161 |
+| 2 | 400 | 400 | 1 | 0 | 0 | 199 | 406942 → 408947 |
+| 3 | 400 | 400 | 2 | 0 | 0 | 198 | 409768 → 411788 |
+| 4 | 400 | 400 | 0 | 0 | 0 | 200 | 410554 → 412569 |
+| **Total** | **2,000** | **2,000** | **5** | **0** | **0** | **995** | — |
+
+Four-shard read-only reconciliation after Run #97:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 757,800 | 103,267 | 656,224 | 3,167,311 | 0 |
+| 02 | 757,447 | 103,269 | 655,891 | 3,167,327 | 0 |
+| 03 | 757,756 | 103,307 | 656,126 | 3,167,343 | 0 |
+| 04 | 757,805 | 103,325 | 656,184 | 3,167,345 | 0 |
+| **Total** | **3,030,808** | **413,168** | **2,624,425** | — | **0** |
+
+The five persisted shard-01 cursors were read directly after the batch and match its worker logs: **418805 / 412161 / 408947 / 411788 / 412569**. All five full-cycle flags remain incomplete; the original boundary is 242336 and the current max player ID is 3,167,345.
+
+The current forward scan still contains **2,618,798 rows**, all with empty cosmetics, split by worker as 522,700 / 523,875 / 524,395 / 523,725 / 524,103. These remain candidate profile fetches; wraparound and the seven low-boundary retry IDs are still separate acceptance conditions.
+
+Across successful Runs #66–97 (31 runs; Run #80's notification-only workflow failure is excluded), the independently verified aggregate is **61,247 fetched, 61,241 changed, 174 gone, 45 fetch errors, and zero probe429**. The 45 errors occurred in Runs #73, #76, and #82; Runs #83–97 all completed with zero fetch errors and zero probe429. The seven low-boundary IDs identified by the previous journal audit still require explicit wraparound/retry reconciliation.
