@@ -115,9 +115,9 @@ jobs:
                   slot += timedelta(hours=1)
               upcoming.append((slot - now).total_seconds() / 60)
           minutes_to_writer = min(upcoming)
-          # The longest observed five-worker pass took 11m51s; keep a
-          # two-minute margin while avoiding unnecessary idle time.
-          if minutes_to_writer <= 14:
+          # Run #82 took 12m55s end-to-end including setup/retry overhead;
+          # preserve a little over two minutes before the reserved writer slot.
+          if minutes_to_writer <= 15:
               raise SystemExit(0)
 
           # Nothing is queued, no writer is active, and the next reserved
@@ -530,7 +530,7 @@ jobs:
           if active:
               print("false|another-writer-is-active-or-queued")
           # Match the pre-dispatch selection guard to the wait-loop margin.
-          elif minutes_to_writer <= 14:
+          elif minutes_to_writer <= 15:
               print(f"false|next-writer-slot-in-{minutes_to_writer:.1f}-minutes")
           else:
               print("true|no-active-writer-and-outside-reserved-slot")
