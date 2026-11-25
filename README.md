@@ -741,7 +741,7 @@ Four-shard read-only reconciliation after Run #65:
 All four shards have zero orphan snapshots. The enrichment workflow remains at `--limit 600 --fetch-cap 400 --probe-workers 1 --sleep 0.7`; the shared `player-search-writers` concurrency group and reserved census/sweep writer slots are unchanged. Run #65's notify-controller wake is queued behind the existing serialized continuation controller; no writer was active at the reconciliation check. The controller remains responsible for recording Run #65 in `ENRICH_PROGRESS.json` and advancing the chain; its worker-cycle flags must remain false until the full cursor-cycle conditions are met.
 
 
-## Enrichment Runs #66–96 — 2026-11-25 (independently verified)
+## Enrichment Runs #66–96 — 2026-11-25 UTC / 2026-11-26 JST (independently verified)
 
 Runs #66–96 were checked against the individual GitHub Actions worker logs. Thirty runs completed successfully; Run #80's five worker jobs succeeded but its old one-shot `notify-controller` step failed on GitHub API HTTP 502. The run is recorded separately below and is excluded from successful-run totals. The current notifier retries five times and falls back to the `workflow_run` trigger and five-minute controller poll, so this historical single-attempt failure mode is now covered.
 
