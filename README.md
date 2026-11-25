@@ -800,3 +800,8 @@ The directly observed shard-01 cursor values after Run #96 are **416800 / 410156
 A read-only audit of the shared control-shard `meta` journal found 84 `bloxd_fetch_<id>` entries whose current value ends in `:err`. This is **not** an unresolved-enrichment count by itself: the same journal is shared by the web app's live-profile refresh and the batch runner, and the batch runner does not replace an old `:err` value with `:ok` on a later successful batch fetch.
 
 All 84 journal IDs were cross-checked against the four player and snapshot databases. Seventy-seven have both a player update timestamp and a latest snapshot later than the journaled error timestamp, providing evidence of a subsequent profile refresh. Seven have no later player update or snapshot evidence. All seven IDs are below the original cursor boundary **242336**, so they are in the low-ID range that only the required wraparound portion of the full cursor cycle will revisit. They must be checked explicitly during final wraparound reconciliation; do not infer full completion from the current forward cursor progress or from the zero-error Runs #83–96.
+
+
+### Forward-scan workload measured after Run #96
+
+A read-only count using the five actual cursor predicates (`id >= cursor AND id % 5 = worker`) across all four shards found **2,620,803 remaining rows** in the current forward scan: worker0 523,101; worker1 524,276; worker2 524,796; worker3 524,127; worker4 524,503. Every row in these five ranges currently has empty cosmetics, so each remains an unconditional profile-fetch candidate. This is the current forward-scan remainder only; the low-ID wraparound range and explicit retry verification remain additional completion conditions.
