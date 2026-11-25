@@ -26,7 +26,9 @@ jobs:
   continue:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.workflow_id == 426133266 || github.event.workflow_run.workflow_id == 426133178 || github.event.workflow_run.workflow_id == 426133230 }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # A reserved sweep can take ~27 minutes and the following census can
+    # start within the 15-minute safety buffer; allow one full cycle plus margin.
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
         with:
@@ -500,7 +502,9 @@ jobs:
           # The cron fallback is not always delivered promptly by GitHub.
           # Stay alive for one safe window instead of dropping continuation
           # after a single unsafe check near a reserved writer minute.
-          deadline=$(( $(date +%s) + 1500 ))
+          # Full worst-case reserved-writer bridge: up to 15m to slot,
+          # 27m sweep, then up to 14m through census; retain a small margin.
+          deadline=$(( $(date +%s) + 3600 ))
           while true; do
             curl --fail --silent --show-error --location \
               -H "Authorization: Bearer ${GH_TOKEN}" \
