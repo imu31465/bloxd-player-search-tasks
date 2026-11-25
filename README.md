@@ -705,3 +705,37 @@ Persisted worker cursors after Run #54 are 333405 / 326666 / 324082 / 325763 / 3
 The controller had safely deferred after Run #53 because the next reserved census/sweep slot was imminent. The five-minute scheduled fallback was not delivered for several hours, leaving the chain idle. Controller commit [31f15be](https://github.com/imu31465/bloxd-player-search-tasks/commit/31f15be761528282192c4fef90e75c4a9ea416e6) changes the guard from a one-shot check into a bounded poll: it checks active census/sweep/enrichment writers every minute and waits up to 25 minutes for a safe window; the controller job timeout is 35 minutes. Run #54 was successfully launched through the repaired wake-up path, and its post-run controller has parsed and committed Run #54 before entering the new wait step.
 
 The controller change passed the exact-head public validation run [45567884623](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45567884623): all seven jobs succeeded, including workflow-YAML validation, token verification, production gateway/login checks, source-writer tests, Altare migration tests, and four-shard index checks.
+
+
+## Enrichment Runs #55–65 — 2026-11-25
+
+Runs #55–65 were independently checked against all five exact worker job logs. Every worker used private source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`, validated the 64-bucket storage map (16 buckets per shard), fetched and changed exactly 400 profiles, wrote 400 snapshots, and stopped only at the intended `fetch cap 400 reached`. No worker log reported a fetch error or probe429.
+
+| Run | GitHub run | fetched / changed / snapshots | gone | errors | probe429 | pending | Cursor ends (workers 0 / 1 / 2 / 3 / 4) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| 55 | [45570929143](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45570929143) | 2,000 / 2,000 / 2,000 | 8 | 0 | 0 | 992 | 335410 / 328676 / 326092 / 327783 / 328604 |
+| 56 | [45574359438](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45574359438) | 2,000 / 2,000 / 2,000 | 9 | 0 | 0 | 991 | 337415 / 330686 / 328097 / 329803 / 330609 |
+| 57 | [45575994363](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45575994363) | 2,000 / 2,000 / 2,000 | 7 | 0 | 0 | 993 | 339425 / 332696 / 330107 / 331808 / 332619 |
+| 58 | [45579430531](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45579430531) | 2,000 / 2,000 / 2,000 | 4 | 0 | 0 | 996 | 341450 / 334696 / 332112 / 333823 / 334619 |
+| 59 | [45583358147](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45583358147) | 2,000 / 2,000 / 2,000 | 5 | 0 | 0 | 995 | 343460 / 336701 / 334117 / 335838 / 336619 |
+| 60 | [45585158575](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45585158575) | 2,000 / 2,000 / 2,000 | 8 | 0 | 0 | 992 | 345465 / 338716 / 336122 / 337838 / 338634 |
+| 61 | [45588763298](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45588763298) | 2,000 / 2,000 / 2,000 | 5 | 0 | 0 | 995 | 347475 / 340736 / 338122 / 339853 / 340659 |
+| 62 | [45592832620](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45592832620) | 2,000 / 2,000 / 2,000 | 2 | 0 | 0 | 998 | 349485 / 342736 / 340137 / 341863 / 342669 |
+| 63 | [45594578315](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45594578315) | 2,000 / 2,000 / 2,000 | 7 | 0 | 0 | 993 | 351490 / 344746 / 342137 / 343888 / 344669 |
+| 64 | [45594723163](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45594723163) | 2,000 / 2,000 / 2,000 | 4 | 0 | 0 | 996 | 353495 / 346756 / 344147 / 345888 / 346679 |
+| 65 | [45598328252](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45598328252) | 2,000 / 2,000 / 2,000 | 9 | 0 | 0 | 991 | 355510 / 348756 / 346157 / 347918 / 348679 |
+| **Total** | — | **22,000 / 22,000 / 22,000** | **68** | **0** | **0** | **10,932** | — |
+
+The five persisted `census_enrich_cursor_0..4` meta keys on shard-01 were read directly after Run #65 and match its worker logs: **355510 / 348756 / 346157 / 347918 / 348679**. The original full-cycle boundary remains 242336; none of the five workers has yet passed the current maximum player ID, wrapped below that boundary, and advanced back through it. All five full-cycle flags remain incomplete. These successful bounded runs are not full-cycle completion.
+
+Four-shard read-only reconciliation after Run #65:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 750,532 | 87,427 | 664,743 | 3,129,345 | 0 |
+| 02 | 750,201 | 87,425 | 664,442 | 3,129,311 | 0 |
+| 03 | 750,469 | 87,474 | 664,612 | 3,129,327 | 0 |
+| 04 | 750,553 | 87,495 | 664,696 | 3,129,343 | 0 |
+| **Total** | **3,001,755** | **349,821** | **2,658,493** | — | **0** |
+
+All four shards have zero orphan snapshots. The enrichment workflow remains at `--limit 600 --fetch-cap 400 --probe-workers 1 --sleep 0.7`; the shared `player-search-writers` concurrency group and reserved census/sweep writer slots are unchanged. Run #65's notify-controller wake is queued behind the existing serialized continuation controller; no writer was active at the reconciliation check. The controller remains responsible for recording Run #65 in `ENRICH_PROGRESS.json` and advancing the chain; its worker-cycle flags must remain false until the full cursor-cycle conditions are met.
