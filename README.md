@@ -793,3 +793,10 @@ Four-shard read-only reconciliation after Run #96 (queries completed after all f
 | **Total** | **3,030,808** | **411,147** | **2,626,439** | — | **0** |
 
 The directly observed shard-01 cursor values after Run #96 are **416800 / 410156 / 406942 / 409768 / 410554**. Original cycle boundary remains 242336. None of the workers has yet reached the current maximum ID near 3.17 million, wrapped below the boundary, and advanced back through it; all five full-cycle flags must remain incomplete. Run #96 is independently verified from its five worker logs, but at the moment this section was written the continuation controller had not yet caught it up in `ENRICH_PROGRESS.json`: controller run [45708894579](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45708894579) was waiting for the next safe census/sweep writer window. Do not manually dispatch a writer or alter the reserved schedule while that serialized controller is active.
+
+
+### Per-ID retry audit after Run #96
+
+A read-only audit of the shared control-shard `meta` journal found 84 `bloxd_fetch_<id>` entries whose current value ends in `:err`. This is **not** an unresolved-enrichment count by itself: the same journal is shared by the web app's live-profile refresh and the batch runner, and the batch runner does not replace an old `:err` value with `:ok` on a later successful batch fetch.
+
+All 84 journal IDs were cross-checked against the four player and snapshot databases. Seventy-seven have both a player update timestamp and a latest snapshot later than the journaled error timestamp, providing evidence of a subsequent profile refresh. Seven have no later player update or snapshot evidence. All seven IDs are below the original cursor boundary **242336**, so they are in the low-ID range that only the required wraparound portion of the full cursor cycle will revisit. They must be checked explicitly during final wraparound reconciliation; do not infer full completion from the current forward cursor progress or from the zero-error Runs #83–96.
