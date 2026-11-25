@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   continue:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success') || github.event.workflow_run.workflow_id == 426133178 || github.event.workflow_run.workflow_id == 426133230 }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.workflow_id == 426133266 || github.event.workflow_run.workflow_id == 426133178 || github.event.workflow_run.workflow_id == 426133230 }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -549,8 +549,55 @@ jobs:
             sleep 60
           done
 
-      - name: Dispatch the next bounded pass
+      - name: Catch up completed enrichment runs before dispatch
+        id: catch-up
         if: ${{ steps.plan.outputs.dispatch == 'true' && steps.writer-guard.outputs.safe == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPOSITORY}/actions/runs?per_page=100" \
+            -o /tmp/enrich-pending-runs.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          progress = json.loads(Path("ENRICH_PROGRESS.json").read_text(encoding="utf-8"))
+          data = json.loads(Path("/tmp/enrich-pending-runs.json").read_text(encoding="utf-8"))
+          last_run_id = int(progress.get("last_run_id") or 0)
+          pending = [
+              run for run in data.get("workflow_runs", [])
+              if int(run.get("workflow_id", 0)) == 426133266
+              and int(run.get("id", 0)) > last_run_id
+              and run.get("status") == "completed"
+          ]
+          pending.sort(key=lambda run: (run.get("run_number", 0), run.get("id", 0)))
+          if pending:
+              print("pending=true")
+              print("oldest_pending_run_id=" + str(pending[0]["id"]))
+              print("oldest_pending_conclusion=" + str(pending[0].get("conclusion", "")))
+          else:
+              print("pending=false")
+          PY
+
+      - name: Requeue controller to process an older completed batch
+        if: ${{ steps.catch-up.outputs.pending == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # Process the next saved cursor/log result before starting another
+          # enrichment writer. This closes the event-delivery race where a
+          # controller starts before a just-completed run appears in Actions.
+          gh api --method POST "repos/${REPOSITORY}/actions/workflows/enrich-continuation.yml/dispatches" -f ref=main
+
+      - name: Dispatch the next bounded pass
+        if: ${{ steps.plan.outputs.dispatch == 'true' && steps.writer-guard.outputs.safe == 'true' && steps.catch-up.outputs.pending != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
