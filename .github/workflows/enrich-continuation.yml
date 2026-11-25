@@ -26,7 +26,7 @@ jobs:
   continue:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event.workflow_run.workflow_id == 426133266 && github.event.workflow_run.conclusion == 'success') || github.event.workflow_run.workflow_id == 426133178 || github.event.workflow_run.workflow_id == 426133230 }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -486,7 +486,7 @@ jobs:
             fi
           fi
 
-      - name: Reserve scheduled census and sweep slots
+      - name: Wait for a safe census/sweep writer window
         id: writer-guard
         if: ${{ steps.plan.outputs.dispatch == 'true' }}
         env:
@@ -495,12 +495,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${REPOSITORY}/actions/runs?per_page=100" \
-            -o /tmp/enrich-active-runs.json
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          # The cron fallback is not always delivered promptly by GitHub.
+          # Stay alive for one safe window instead of dropping continuation
+          # after a single unsafe check near a reserved writer minute.
+          deadline=$(( $(date +%s) + 1500 ))
+          while true; do
+            curl --fail --silent --show-error --location \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${REPOSITORY}/actions/runs?per_page=100" \
+              -o /tmp/enrich-active-runs.json
+            result="$(python3 - <<'PY'
           import json
           from datetime import datetime, timedelta, timezone
           from pathlib import Path
@@ -520,16 +525,29 @@ jobs:
                   slot += timedelta(hours=1)
               deltas.append((slot - now).total_seconds() / 60)
           minutes_to_writer = min(deltas)
-          safe = not active and minutes_to_writer > 18
-          print("safe=" + str(safe).lower())
-          print("reason=" + (
-              "no-active-writer-and-outside-reserved-slot"
-              if safe else (
-                  "another-writer-is-active-or-queued" if active
-                  else f"next-writer-slot-in-{minutes_to_writer:.1f}-minutes"
-              )
-          ))
+          if active:
+              print("false|another-writer-is-active-or-queued")
+          elif minutes_to_writer <= 18:
+              print(f"false|next-writer-slot-in-{minutes_to_writer:.1f}-minutes")
+          else:
+              print("true|no-active-writer-and-outside-reserved-slot")
           PY
+          )"
+            safe="${result%%|*}"
+            reason="${result#*|}"
+            echo "writer guard: ${reason}"
+            if [[ "${safe}" == "true" ]]; then
+              echo "safe=true" >> "$GITHUB_OUTPUT"
+              echo "reason=${reason}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if (( $(date +%s) >= deadline )); then
+              echo "safe=false" >> "$GITHUB_OUTPUT"
+              echo "reason=wait-timeout:${reason}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 60
+          done
 
       - name: Dispatch the next bounded pass
         if: ${{ steps.plan.outputs.dispatch == 'true' && steps.writer-guard.outputs.safe == 'true' }}
