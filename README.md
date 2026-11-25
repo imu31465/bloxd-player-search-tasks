@@ -917,3 +917,8 @@ A read-only Neon project inspection confirmed all four shard projects belong to 
 For capacity planning only, extrapolating the observed per-snapshot heap-plus-index footprint to one new snapshot for every remaining forward-scan row estimates roughly **236 MiB additional logical data per shard**. That gives a rough projected range of **496–505 MiB per shard**, below the 1 GiB branch limit with about 519–528 MiB of headroom. This is an estimate, not a guarantee: snapshot payload sizes, indexes, bloat, retention, and actual profile responses can change the final footprint. No Neon limits, retention settings, or database contents were modified.
 
 The continuation controller recorded Run #98 in `ENRICH_PROGRESS.json` (83 runs observed) and remains responsible for the next safe dispatch. Do not manually dispatch a writer or weaken the reserved-writer guard.
+
+
+### Low-boundary retry adjudication — read-only A-gate probe
+
+The seven older error-journal entries below boundary 242336 have now been checked against current player rows and a fresh read-only Bloxd HEAD redirect probe. Four still have empty cosmetics and remain unconditional profile-fetch candidates when their cursors wrap. Of the three populated-cosmetics rows, two currently redirect to slugs that do not match their stored names and must be fetched on wraparound; the third currently redirects to an exact stored-name match and can be safely skipped by the runner's A-gate. This probe classifies the work but does not count as a profile refresh: the two mismatches still require an actual successful fetch and post-fetch DB evidence during wraparound. No player IDs or names are reproduced here.
