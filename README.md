@@ -672,3 +672,36 @@ Four-shard read-only reconciliation after Run #50:
 | **Total** | **2,940,203** | **319,694** | **2,626,872** | — | **0** |
 
 Persisted worker cursors are 325370 / 318646 / 316042 / 317729 / 318569. Worker3's prior retry state was cleared after its successful retry. All five full-cycle flags remain false because every worker is still above the original 242336 boundary. The continuation controller woke after this run, but its writer guard correctly deferred dispatch because the next hourly census slot was imminent; the five-minute scheduled controller remains responsible for resuming in the next safe window.
+
+
+## Enrichment Runs #51–54 — 2026-11-24 to 2026-11-25
+
+The four continuation batches after Run #50 were verified from the five worker logs and the persisted controller state:
+
+| Run | GitHub run | fetched | changed / snapshots | gone | errors | probe429 | pending |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 51 | [45479479626](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45479479626) | 2,000 | 2,000 | 6 | 0 | 0 | 994 |
+| 52 | [45510143795](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45510143795) | 2,000 | 2,000 | 6 | 0 | 0 | 994 |
+| 53 | [45556684858](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45556684858) | 2,000 | 2,000 | 10 | 0 | 0 | 990 |
+| 54 | [45567479474](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45567479474) | 2,000 | 2,000 | 4 | 0 | 0 | 996 |
+| **Total** | — | **8,000** | **8,000** | **26** | **0** | **0** | **3,974** |
+
+All four runs used private runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`, five modulo partitions, `--limit 600`, `--fetch-cap 400`, one HEAD probe worker, and 0.7-second spacing between social-profile fetches. Each worker reached its intended 400-fetch cap; remaining rows were retained in the cursor. None of these runs reported a fetch error or probe429.
+
+Four-shard read-only reconciliation after Run #54:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 750,532 | 81,927 | 670,232 | 3,129,345 | 0 |
+| 02 | 750,201 | 81,935 | 669,915 | 3,129,311 | 0 |
+| 03 | 750,469 | 81,967 | 670,112 | 3,129,327 | 0 |
+| 04 | 750,553 | 81,992 | 670,179 | 3,129,343 | 0 |
+| **Total** | **3,001,755** | **327,821** | **2,680,438** | — | **0** |
+
+Persisted worker cursors after Run #54 are 333405 / 326666 / 324082 / 325763 / 326604. All five full-cycle flags remain false; the workers have not yet reached the maximum player ID, wrapped, and returned through the original 242336 boundary. These runs are successful bounded batches, not proof that the full enrichment pass is complete.
+
+### Continuation controller stall repair — 2026-11-25
+
+The controller had safely deferred after Run #53 because the next reserved census/sweep slot was imminent. The five-minute scheduled fallback was not delivered for several hours, leaving the chain idle. Controller commit [31f15be](https://github.com/imu31465/bloxd-player-search-tasks/commit/31f15be761528282192c4fef90e75c4a9ea416e6) changes the guard from a one-shot check into a bounded poll: it checks active census/sweep/enrichment writers every minute and waits up to 25 minutes for a safe window; the controller job timeout is 35 minutes. Run #54 was successfully launched through the repaired wake-up path, and its post-run controller has parsed and committed Run #54 before entering the new wait step.
+
+The controller change passed the exact-head public validation run [45567884623](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45567884623): all seven jobs succeeded, including workflow-YAML validation, token verification, production gateway/login checks, source-writer tests, Altare migration tests, and four-shard index checks.
