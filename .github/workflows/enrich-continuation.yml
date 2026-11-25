@@ -5,6 +5,8 @@ on:
     workflows: ["enrich", "Enrich", "Enrich continuation", "census", "sweep"]
     types: [completed]
   schedule:
+    # Safety-gated five-minute fallback; push events can also wake this poll
+    # when GitHub omits delayed schedule deliveries.
     - cron: "*/5 * * * *"
   workflow_dispatch:
   push:
