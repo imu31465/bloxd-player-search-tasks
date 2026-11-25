@@ -934,3 +934,33 @@ A read-only count of the remaining low-ID segment (`id < 242336`) across all fou
 The protected continuation wait was extended in commit [745e163748ffce051987e775ae83f5740208f31a](https://github.com/imu31465/bloxd-player-search-tasks/commit/745e163748ffce051987e775ae83f5740208f31a): the writer-window poll now waits up to **60 minutes**, with a **65-minute job timeout**. This was based on the measured actual scheduled writer durations, not a guessed timeout: Sweep Run #13 ([45662203715](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45662203715)) ran its slowest shard for **26m54s**; Census Run #14 ([45639971070](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45639971070)) took **7m05s** from first scan start through finalize. Starting shortly before the :13 sweep slot can therefore require waiting through that sweep and the following :47 census slot before the next safe dispatch window opens; the observed worst-case bridge is about 56 minutes. The 60-minute poll covers that cycle with a small margin. The 15-minute minimum pre-writer buffer, one-minute polling interval, shared `player-search-writers` concurrency, and cancel-in-progress=false remain unchanged.
 
 Exact-head validation [Run #93 / 45715865723](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45715865723) completed successfully on commit `745e163748ffce051987e775ae83f5740208f31a`; all seven jobs passed (workflow YAML, token, gateway/login, source main/runner tests, Altare migration tests, and four-shard secret/read access). This extends the controller's wait duration only; it does not dispatch or overlap any production writer.
+
+
+## Enrichment Run #99 — 2026-11-25 UTC / 2026-11-26 JST
+
+[Run #99 / 45716269796](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45716269796) completed successfully on pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Gate, prepare, all five worker jobs, and notify-controller succeeded. Every worker fetched and changed exactly 400 profiles; all five stopped only at the expected fetch-cap boundary.
+
+| Worker | Fetched | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 2 | 0 | 0 | 198 | 420810 → 422825 |
+| 1 | 400 | 400 | 0 | 0 | 0 | 200 | 414161 → 416161 |
+| 2 | 400 | 400 | 1 | 0 | 0 | 199 | 410957 → 412982 |
+| 3 | 400 | 400 | 0 | 0 | 0 | 200 | 413798 → 415798 |
+| 4 | 400 | 400 | 3 | 0 | 0 | 197 | 414569 → 416594 |
+| **Total** | **2,000** | **2,000** | **6** | **0** | **0** | **994** | — |
+
+Four-shard read-only reconciliation after Run #99:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 757,800 | 104,266 | 655,229 | 3,167,311 | 0 |
+| 02 | 757,447 | 104,272 | 654,889 | 3,167,327 | 0 |
+| 03 | 757,756 | 104,305 | 655,129 | 3,167,343 | 0 |
+| 04 | 757,805 | 104,325 | 655,189 | 3,167,345 | 0 |
+| **Total** | **3,030,808** | **417,168** | **2,620,436** | — | **0** |
+
+The five persisted shard-01 cursors were read directly after the batch and match its worker logs: **422825 / 416161 / 412982 / 415798 / 416594**. All five full-cycle flags remain incomplete; the original boundary is 242336 and the current maximum player ID remains 3,167,345.
+
+The current forward scan contains **2,614,787 rows**, all with empty cosmetics, split by worker as 521,897 / 523,075 / 523,592 / 522,923 / 523,300. Wraparound and the seven low-boundary journal cases remain separate acceptance conditions.
+
+Across successful Runs #66–99 (33 runs; Run #80's notification-only workflow failure is excluded), the independently verified aggregate is **65,247 fetched, 65,241 changed, 185 gone, 45 fetch errors, and zero probe429**. The 45 errors occurred in Runs #73, #76, and #82; Runs #83–99 all completed with zero fetch errors and zero probe429.
