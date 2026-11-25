@@ -240,4 +240,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          gh api --method POST "repos/${REPOSITORY}/actions/workflows/enrich-continuation.yml/dispatches" -f ref=main
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if gh api --method POST "repos/${REPOSITORY}/actions/workflows/enrich-continuation.yml/dispatches" -f ref=main >/dev/null; then
+              echo "Continuation controller dispatch accepted."
+              exit 0
+            fi
+            echo "Controller dispatch failed (attempt ${attempt}/5); retrying." >&2
+            if [[ "${attempt}" -lt 5 ]]; then
+              sleep $((attempt * 3))
+            fi
+          done
+          # The completed workflow_run trigger and five-minute controller
+          # poll are independent fallbacks. A transient API 502 must not
+          # turn five successful profile workers into a failed enrich run.
+          echo "::warning::Controller dispatch did not succeed after five attempts; workflow_run/schedule fallback will recover."
+          exit 0
