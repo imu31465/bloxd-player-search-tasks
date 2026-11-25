@@ -872,3 +872,48 @@ The five persisted shard-01 cursors were read directly after the batch and match
 The current forward scan contains **2,616,793 rows**, all with empty cosmetics, split by worker as 522,299 / 523,475 / 523,993 / 523,323 / 523,703. Wraparound and the seven low-boundary journal cases remain separate acceptance conditions.
 
 Across successful Runs #66–98 (32 runs; Run #80's notification-only workflow failure is excluded), the independently verified aggregate is **63,247 fetched, 63,241 changed, 179 gone, 45 fetch errors, and zero probe429**. The 45 errors occurred in Runs #73, #76, and #82; Runs #83–98 all completed with zero fetch errors and zero probe429.
+
+
+## Verified Enrichment Run #98 and storage headroom — 2026-11-25 UTC / 2026-11-26 JST
+
+Enrichment Run #98 ([45713078191](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45713078191)) completed successfully on pinned private source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Gate, prepare, all five worker jobs, and notify-controller succeeded. Each worker fetched, changed, and wrote exactly 400 snapshots; all stopped only at the expected fetch-cap boundary.
+
+| Worker | Fetched / changed / snapshots | Gone | Fetch errors | Probe 429 | Pending | Cursor start → end | Elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 / 400 / 400 | 1 | 0 | 0 | 199 | 418805 → 420810 | 367s |
+| 1 | 400 / 400 / 400 | 0 | 0 | 0 | 200 | 412161 → 414161 | 447s |
+| 2 | 400 / 400 / 400 | 2 | 0 | 0 | 198 | 408947 → 410957 | 408s |
+| 3 | 400 / 400 / 400 | 2 | 0 | 0 | 198 | 411788 → 413798 | 549s |
+| 4 | 400 / 400 / 400 | 0 | 0 | 0 | 200 | 412569 → 414569 | 584s |
+| **Total** | **2,000 / 2,000 / 2,000** | **5** | **0** | **0** | **995** | — | — |
+
+Four-shard read-only reconciliation after Run #98:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 757,800 | 103,769 | 655,723 | 3,167,311 | 0 |
+| 02 | 757,447 | 103,770 | 655,390 | 3,167,327 | 0 |
+| 03 | 757,756 | 103,803 | 655,631 | 3,167,343 | 0 |
+| 04 | 757,805 | 103,826 | 655,686 | 3,167,345 | 0 |
+| **Total** | **3,030,808** | **415,168** | **2,622,430** | — | **0** |
+
+The persisted shard-01 cursors were read after the run and match the five worker logs exactly: **420810 / 414161 / 410957 / 413798 / 414569**. All five full-cycle flags remain incomplete; the original boundary is 242336 and the current maximum ID is 3,167,345.
+
+### Remaining forward-scan work
+
+The five live cursor predicates (`id >= cursor AND id % 5 = worker`) currently select **2,616,793 rows** across the four shards: worker0 522,299; worker1 523,475; worker2 523,993; worker3 523,323; worker4 523,703. Each worker-specific count was independently checked against the same range restricted to empty-cosmetics rows; the values match exactly. This is the forward-scan remainder only. The low-ID wraparound and seven explicitly tracked retry candidates below boundary 242336 remain separate acceptance conditions.
+
+### Neon storage headroom check
+
+A read-only Neon project inspection confirmed all four shard projects belong to the `ltf` Free-plan organization and each has a **1 GiB branch logical-size limit**. The current primary-branch logical sizes were:
+
+| Shard | Current branch logical size | Current database size | Snapshot table + index size | Snapshot rows |
+|---:|---:|---:|---:|---:|
+| 01 | 268.34 MiB | 245.67 MiB | 37.57 MiB | 103,769 |
+| 02 | 260.25 MiB | 237.56 MiB | 37.45 MiB | 103,770 |
+| 03 | 261.27 MiB | 238.50 MiB | 37.50 MiB | 103,803 |
+| 04 | 260.97 MiB | 238.32 MiB | 37.52 MiB | 103,826 |
+
+For capacity planning only, extrapolating the observed per-snapshot heap-plus-index footprint to one new snapshot for every remaining forward-scan row estimates roughly **236 MiB additional logical data per shard**. That gives a rough projected range of **496–505 MiB per shard**, below the 1 GiB branch limit with about 519–528 MiB of headroom. This is an estimate, not a guarantee: snapshot payload sizes, indexes, bloat, retention, and actual profile responses can change the final footprint. No Neon limits, retention settings, or database contents were modified.
+
+The continuation controller recorded Run #98 in `ENRICH_PROGRESS.json` (83 runs observed) and remains responsible for the next safe dispatch. Do not manually dispatch a writer or weaken the reserved-writer guard.
