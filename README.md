@@ -922,3 +922,8 @@ The continuation controller recorded Run #98 in `ENRICH_PROGRESS.json` (83 runs 
 ### Low-boundary retry adjudication — read-only A-gate probe
 
 The seven older error-journal entries below boundary 242336 have now been checked against current player rows and a fresh read-only Bloxd HEAD redirect probe. Four still have empty cosmetics and remain unconditional profile-fetch candidates when their cursors wrap. Of the three populated-cosmetics rows, two currently redirect to slugs that do not match their stored names and must be fetched on wraparound; the third currently redirects to an exact stored-name match and can be safely skipped by the runner's A-gate. This probe classifies the work but does not count as a profile refresh: the two mismatches still require an actual successful fetch and post-fetch DB evidence during wraparound. No player IDs or names are reproduced here.
+
+
+### Remaining low-ID wraparound range
+
+A read-only count of the remaining low-ID segment (`id < 242336`) across all four shards found **241,632 rows** in total. Of these, **4,750 have empty cosmetics** and therefore require an unconditional social-profile fetch; the other **236,882 have populated cosmetics** and are handled by the existing A-gate redirect/name comparison. Per-worker totals (all rows / empty-cosmetics fetch candidates) are: worker0 48,316 / 990; worker1 48,326 / 944; worker2 48,338 / 935; worker3 48,322 / 958; worker4 48,330 / 923. These are workload counts only; the full wraparound still has to run through the cursor workflow, and any mismatched A-gate profile must be fetched successfully before acceptance.
