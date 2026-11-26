@@ -1028,3 +1028,31 @@ Four-shard read-only reconciliation immediately after Run #132:
 The five persisted shard-01 cursor meta keys were read after Run #132 and exactly match the worker logs: **489420 / 482371 / 478207 / 481983 / 482759**. All five `worker_cycles.completed` flags remain false. None has passed the current max player ID **3,243,345**, wrapped below boundary **242336**, and advanced back through that boundary. The seven previously adjudicated low-boundary journal cases remain outstanding until the four empty-cosmetics and two redirect/name-mismatch cases receive their actual wraparound profile fetch and post-fetch evidence; the exact-match case remains eligible for the A-gate skip.
 
 At this checkpoint, the controller had processed Run #132 and dispatched exactly one next batch, Run #133 / `45801306729`, which is the sole active writer. Controller Run #181 / `45801208571` succeeded. No new dispatch should be made while Run #133 is active. The latest live `ENRICH_PROGRESS.json` has `last_run_id=45799540748`, `total_runs_observed=117`, and `status=running`; its note field still describes the older Run #99 checkpoint and must be refreshed only after the controller is no longer writing.
+
+
+## Verified Enrichment Run #133 — 2026-11-26 UTC / JST
+
+[Run #133 / 45801306729](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45801306729) completed successfully. The cutover gate, prepare, all five worker jobs, and notify-controller succeeded. Every worker used pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`; all five logs confirmed the 64-bucket storage map (16 buckets per configured shard). All five stopped only at the expected fetch-cap boundary.
+
+| Worker | Fetched | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 2 | 0 | 0 | 198 | 489420 → 491710 |
+| 1 | 400 | 400 | 3 | 0 | 0 | 197 | 482371 → 484391 |
+| 2 | 400 | 400 | 3 | 0 | 0 | 197 | 478207 → 480222 |
+| 3 | 400 | 400 | 2 | 0 | 0 | 198 | 481983 → 483993 |
+| 4 | 400 | 400 | 0 | 0 | 0 | 200 | 482759 → 484759 |
+| **Total** | **2,000** | **2,000** | **10** | **0** | **0** | **990** | — |
+
+Four-shard read-only reconciliation after Run #133:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 774,697 | 121,407 | 655,194 | 3,243,343 | 0 |
+| 02 | 774,299 | 121,392 | 654,831 | 3,243,345 | 0 |
+| 03 | 774,564 | 121,446 | 655,007 | 3,243,311 | 0 |
+| 04 | 774,541 | 121,469 | 654,997 | 3,243,327 | 0 |
+| **Total** | **3,098,101** | **485,714** | **2,620,029** | — | **0** |
+
+The five persisted shard-01 cursor keys were read after completion and exactly match the worker logs: **491710 / 484391 / 480222 / 483993 / 484759**. A read-only forward scan using these five modulo-5 cursor predicates found **2,614,095 rows remaining**, all empty-cosmetics candidates, split by worker as **521,720 / 522,894 / 523,617 / 522,744 / 523,120**. The seven low-boundary error-journal cases remain a separate wraparound acceptance condition.
+
+All five full-cycle flags remain incomplete: no cursor has passed the current four-shard maximum **3,243,345**, wrapped below **242336**, and advanced back through the boundary. The continuation controller was notified successfully by the run; no manual dispatch or concurrency bypass was used.
