@@ -15,6 +15,7 @@ source and player data are not copied here.
 | `census.yml` | Hourly at :47 UTC + manual | Four parallel ID-range workers; shared moving frontier |
 | `sweep.yml` | Hourly at :13 UTC + manual | Five concurrent social-profile sweep workers |
 | `enrich.yml` | Daily + manual + `ENRICH_NOW.json` commit | Profile enrichment drip / selected IDs; the tracked file gives a one-shot initial run after the first sweep finishes |
+| `enrich-continuation.yml` | `workflow_run` after enrich/census/sweep completion + every 5 minutes + manual | Reconcile exact worker logs, update controller-owned progress, wait for the reserved-writer safety window, and dispatch exactly one next bounded enrichment batch |
 | `name-scan.yml` | Manual | Four-character name availability scan |
 | `source-pr-validation.yml` | Manual + workflow-file update | Test merged source `main`/`runner` and merged Altare `main`, run PostgreSQL integration suites on disposable services, verify runner secrets with read-only Neon SELECTs, and lint workflow YAML |
 | `production-availability.yml` | Every 15 minutes + manual + monitor-file update | Check the public gateway, all four Neon shards, and the login page; send Discord alert only when a check fails |
@@ -32,7 +33,11 @@ the sweep runs hourly at minute :13 UTC and census runs hourly at minute :47 UTC
 The daily enrich job runs at 01:37 UTC, and its one-shot first run is started by
 `ENRICH_NOW.json` after the initial sweep. A pending scheduled run may wait
 behind the active writer; all three cursors are resumable so delayed runs can
-catch up without overlapping database writes.
+catch up without overlapping database writes. The continuation controller has
+its own non-cancelling lock, but it never bypasses `player-search-writers`: it
+checks all active/queued census, sweep, and enrich runs, preserves the 15-minute
+pre-slot guard at UTC :13/:47, and can wait up to 60 minutes for a safe window
+before dispatching one bounded batch.
 
 ## Cutover lock
 
