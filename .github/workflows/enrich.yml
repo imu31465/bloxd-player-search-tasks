@@ -186,15 +186,11 @@ jobs:
           print("Storage map validated: 64 buckets, 16 per shard; all four shard configs present")
           PY
           # Five independent modulo partitions use isolated cursor keys and
-          # runner IPs; this mirrors the already-proven 5-worker social sweep.
-          # Empty-cosmetics rows are unconditional social-fetch candidates;
-          # the runner now skips their redundant HEAD probes. Recent live
-          # runs found candidate shortages in a 600-row window (224 and 288
-          # fetches on otherwise clean workers). Use the pre-tested 1,000-row
-          # window to absorb A-gate/cooldown skips; the 400-fetch cap and
-          # 0.7-second per-fetch pacing remain unchanged.
-          ARGS=(--limit 1000 --probe-workers 1 --probe-retry-rounds 3 \
-                --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400 \
+          # runner IPs. Every row without a successful fetch in the last 24h
+          # is eligible for a full-profile refresh, independent of its name.
+          # Keep the 1,000-row inspection window, 400-fetch cap and 0.7-second
+          # pacing; cooldown and cursor logic retain work safely.
+          ARGS=(--limit 1000 --sleep 0.7 --fetch-cap 400 \
                 --shard "${{ matrix.shard }}/5")
           if [ -n "$FORCE_IDS_INPUT" ]; then
             if [[ ! "$FORCE_IDS_INPUT" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
