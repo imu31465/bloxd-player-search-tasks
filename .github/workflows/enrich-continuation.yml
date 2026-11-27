@@ -26,9 +26,9 @@ jobs:
   continue:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.workflow_id == 426133266 || github.event.workflow_run.workflow_id == 426133178 || github.event.workflow_run.workflow_id == 426133230 }}
     runs-on: ubuntu-latest
-    # A reserved sweep can take ~27 minutes and the following census can
-    # start within the 15-minute safety buffer; allow one full cycle plus margin.
-    timeout-minutes: 65
+    # Recent measured writer durations: sweep #18 35m52s, census #19 17m05s.
+    # Allow a delayed writer chain to finish without abandoning this controller.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -502,9 +502,10 @@ jobs:
           # The cron fallback is not always delivered promptly by GitHub.
           # Stay alive for one safe window instead of dropping continuation
           # after a single unsafe check near a reserved writer minute.
-          # Full worst-case reserved-writer bridge: up to 15m to slot,
-          # 27m sweep, then up to 14m through census; retain a small margin.
-          deadline=$(( $(date +%s) + 3600 ))
+          # Recent observed durations reached 35m52s for sweep #18 and 17m05s
+          # for census #19. The 80m wait deadline is bounded by the 90m job timeout;
+          # if writer reservations keep recurring, a later five-minute poll retries.
+          deadline=$(( $(date +%s) + 4800 ))
           while true; do
             curl --fail --silent --show-error --location \
               -H "Authorization: Bearer ${GH_TOKEN}" \
@@ -531,8 +532,20 @@ jobs:
                   slot += timedelta(hours=1)
               deltas.append((slot - now).total_seconds() / 60)
           minutes_to_writer = min(deltas)
+          # Scheduled workflows can appear a couple of minutes after their cron
+          # minute. Keep a five-minute arrival grace after each reserved slot so
+          # continuation cannot acquire the shared lock before the writer appears.
+          recent_slot_ages = []
+          for minute in (13, 47):
+              slot = now.replace(minute=minute, second=0, microsecond=0)
+              if slot > now:
+                  slot -= timedelta(hours=1)
+              recent_slot_ages.append((now - slot).total_seconds() / 60)
+          minutes_since_writer = min(recent_slot_ages)
           if active:
               print("false|another-writer-is-active-or-queued")
+          elif minutes_since_writer <= 5:
+              print(f"false|reserved-writer-arrival-grace-{minutes_since_writer:.1f}-minutes")
           # Match the pre-dispatch selection guard to the wait-loop margin.
           elif minutes_to_writer <= 15:
               print(f"false|next-writer-slot-in-{minutes_to_writer:.1f}-minutes")
