@@ -1722,3 +1722,20 @@ No populated-cosmetics rows remain ahead of the five cursors. There are zero orp
 The full current error-journal comparison checked **173** `bloxd_fetch` markers across all four data shards. **166** now have both a later player update and a later snapshot than the recorded error time. **Seven remain unresolved**, all below the original boundary **242336**; no above-boundary error remains unresolved. The seven still require the full wraparound/A-gate adjudication. Individual player IDs are intentionally omitted.
 
 The continuation controller #283 / [46030199088](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46030199088) has committed Run #217 progress and is waiting at the protected safe-writer guard. Do not manually dispatch or overlap writers. All five worker cycles remain `wrapped=false` and `completed=false`; every cursor must pass the current max ID **3,357,345**, wrap below **242336**, and return through the boundary with zero pending work, errors, probe429s, and unresolved A-gate/retry cases. This checkpoint is not full-pass completion.
+
+## Verified Enrichment Run #218 — 2026-11-27 UTC
+
+[Run #218 / 46032557974](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46032557974) completed successfully. Cutover, prepare, all five workers, and notify-controller passed. Prepare pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. All five worker logs independently confirm the exact arguments `--limit 1000 --fetch-cap 400 --probe-workers 1 --sleep 0.7 --probe-retry-rounds 3 --probe-retry-wait 120`.
+
+| Worker | Recorded | Changed | Gone | Errors | Probe 429 | Skipped | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 661460 → 663465 |
+| 1 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 655626 → 657641 |
+| 2 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 652097 → 654097 |
+| 3 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 655148 → 657168 |
+| 4 | 400 | 400 | 2 | 0 | 0 | 0 | 598 | 656144 → 658169 |
+| **Total** | **2,000** | **2,000** | **4** | **0** | **0** | **0** | **2,996** | — |
+
+The controller #284 / [46034116473](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46034116473) successfully committed the Run #218 progress state and dispatched Run #219 / [46034217787](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46034217787). Run #219 is the sole active profile writer at this checkpoint. Consequently, **no Neon reconciliation after Run #218 has been performed yet**; wait for Run #219 and any subsequent writer/controller activity to finish before running four-shard read-only counts.
+
+All five worker cycles remain incomplete. The current five-cycle criteria remain unchanged: each cursor must pass the latest cross-shard maximum player ID, wrap below 242336, and advance back through the boundary with no pending work, fetch errors, probe429s, or unresolved retry/A-gate cases. This is not full-pass completion.
