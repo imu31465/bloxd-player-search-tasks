@@ -122,6 +122,50 @@ jobs:
           echo "Validated source ref: $SOURCE_REF"
           echo "Validated source SHA: $SOURCE_SHA"
 
+      - name: Require full-profile refresh and Discord reporting fixes on runner
+        if: ${{ matrix.source_ref == 'runner' }}
+        working-directory: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --deepen=10 origin runner
+          git merge-base --is-ancestor a2d8695bc6e1d1096fbfdb23b60ba5348a860090 HEAD
+          git merge-base --is-ancestor 3e0aed333a9711f2abb05643684de8d2f0605528 HEAD
+          python - <<'PY'
+          from pathlib import Path
+
+          enrich = Path("tools/enrich_profiles.py").read_text(encoding="utf-8")
+          sweep = Path("tools/social_sweep.py").read_text(encoding="utf-8")
+          notifier = Path("tools/update_frontier.py").read_text(encoding="utf-8")
+          required = {
+              "journal-only full-profile refresh": (
+                  "def should_fetch_profile" in enrich
+                  and "probe_ids_for_enriched_profiles" not in enrich
+              ),
+              "enrich per-player profile reports": (
+                  "describe_profile_changes" in enrich
+                  and "profile_changes_" in enrich
+              ),
+              "sweep per-player profile reports": (
+                  "describe_profile_changes" in sweep
+                  and "profile_changes_" in sweep
+              ),
+              "observable webhook delivery": (
+                  "discord notify delivered (HTTP " in notifier
+                  and "DISCORD_WEBHOOK_URL is not configured" in notifier
+              ),
+              "profile-change report tests": Path(
+                  "tests/test_profile_change_report.py"
+              ).is_file(),
+          }
+          failed = [name for name, ok in required.items() if not ok]
+          for name, ok in required.items():
+              print(f"{name}: {'OK' if ok else 'MISSING'}")
+          if failed:
+              raise SystemExit("Runner is missing accepted production changes: "
+                               + ", ".join(failed))
+          PY
+
       - name: Record exact source head
         env:
           SOURCE_REF: ${{ matrix.source_ref }}
