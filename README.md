@@ -1614,3 +1614,23 @@ All five full-cycle flags remain incomplete. No cursor has passed the current fo
 - Exact-head validation [#95 / 46023091933](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46023091933) passed all seven jobs on commit dbc33f1edaf96c62270b7fd7c3ced5d5dd14275b: Altare tests, merged runner tests, merged main tests, production gateway/login, live SP token, workflow YAML, and read-only Neon access.
 - Run [#215 / 46023022533](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46023022533) was dispatched by controller #278 at **2026-11-27T15:13:52Z**. Its workflow revision contains `--limit 1000 --fetch-cap 400 --probe-workers 1 --sleep 0.7 --probe-retry-rounds 3 --probe-retry-wait 120`; prepare confirms source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`, matching the current private `runner` branch. Cutover and prepare passed; the five worker jobs were in progress when this checkpoint was recorded.
 - Controller #278 dispatched exactly Run #215. Queued controller #279 and push-triggered controller #280 both completed successfully without duplicate dispatch. Run #215 must be independently audited from its five worker logs, followed by a fresh four-shard read-only reconciliation. Do not manually dispatch another writer or treat this launch checkpoint as completion.
+
+
+## Verified Enrichment Run #215 — 2026-11-27 UTC
+
+[Run #215 / 46023022533](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46023022533) completed successfully. The cutover gate, prepare, all five worker jobs, and notify-controller passed. All workers used the exact arguments `--limit 1000 --fetch-cap 400 --probe-workers 1 --sleep 0.7 --probe-retry-rounds 3 --probe-retry-wait 120`. Each worker environment and the prepare log independently confirm source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Worker | Recorded | Changed | Gone | Errors | Probe 429 | Skipped | Pending | Cursor | Duration |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 655445 → 657460 | 569s |
+| 1 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 649617 → 651621 | 603s |
+| 2 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 646087 → 648087 | 586s |
+| 3 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 649143 → 651153 | 459s |
+| 4 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 650134 → 652139 | 576s |
+| **Total** | **2,000** | **2,000** | **2** | **0** | **0** | **0** | **2,998** | — | — |
+
+All five workers reached the configured 400-fetch cap. There were no HTTP fetch errors, probe 429s, or A-gate skips. Each worker retained its remaining candidates at the next cursor; `ABORTED (fetch cap 400 reached)` is the expected bounded-pass stop, not a job failure. All five worker jobs and the overall workflow concluded successfully.
+
+The continuation controller #281 / [46024684664](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024684664) processed Run #215 and dispatched Run #216 / [46024779632](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024779632). Run #216 passed cutover and prepare; its prepare log again pins source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Its five workers are active, so no post-Run #215 database reconciliation is included yet. Wait until Run #216 and all other writer jobs finish before the next four-shard read-only reconciliation.
+
+All five full-cycle flags remain incomplete. The cursors have not completed the required pass beyond the current four-shard maximum, wrap below 242336, and return through the original boundary. Continue the controller-managed chain; do not manually dispatch.
