@@ -114,6 +114,15 @@ jobs:
           git clone --depth 1 --single-branch --branch "$SOURCE_REF" \
             git@github.com:imu31465/bloxd-player-search.git src
 
+          if [[ "$SOURCE_REF" == "runner" ]]; then
+            # Deepen while the read-only deploy key is still available.
+            git -C src fetch --deepen=10 origin runner
+            git -C src merge-base --is-ancestor \
+              a2d8695bc6e1d1096fbfdb23b60ba5348a860090 HEAD
+            git -C src merge-base --is-ancestor \
+              3e0aed333a9711f2abb05643684de8d2f0605528 HEAD
+          fi
+
           SOURCE_SHA="$(git -C src rev-parse HEAD)"
           rm -f ~/.ssh/id_ed25519
           unset DEPLOY_KEY
@@ -128,9 +137,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --deepen=10 origin runner
-          git merge-base --is-ancestor a2d8695bc6e1d1096fbfdb23b60ba5348a860090 HEAD
-          git merge-base --is-ancestor 3e0aed333a9711f2abb05643684de8d2f0605528 HEAD
           python - <<'PY'
           from pathlib import Path
 
