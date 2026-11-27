@@ -1356,3 +1356,31 @@ Four-shard read-only reconciliation after Run #201:
 The persisted shard-01 cursor keys match the five Run #201 logs: **626486 / 621756 / 617107 / 621163 / 621859**. All five full-cycle flags remain incomplete; no cursor has crossed the four-shard maximum, wrapped below 242336, and returned through the boundary.
 
 Controller #261 / [45982767152](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45982767152) completed successfully and dispatched Run #202 / [45982866712](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45982866712). Run #202 passed its cutover gate and prepare, pinned the same source SHA, and had its five workers in progress at this checkpoint. Run #202 is the sole active writer; do not dispatch another writer manually or overlap it. This is a verified checkpoint, not full-pass completion.
+
+
+## Verified Enrichment Run #202 — 2026-11-27 UTC
+
+[Run #202 / 45982866712](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45982866712) completed successfully. The cutover gate, prepare, all five workers, and notify-controller passed. Every worker used pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. All five worker batches were in the empty-cosmetics forward-scan segment; the logs confirmed zero enriched-profile HEAD probes per worker.
+
+| Worker | Recorded | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 199 | 626486 → 628495 |
+| 1 | 400 | 400 | 0 | 0 | 0 | 200 | 621756 → 623756 |
+| 2 | 400 | 400 | 1 | 0 | 0 | 199 | 617107 → 619112 |
+| 3 | 400 | 400 | 2 | 0 | 0 | 198 | 621163 → 623173 |
+| 4 | 400 | 400 | 1 | 0 | 0 | 199 | 621859 → 623864 |
+| **Total** | **2,000** | **2,000** | **5** | **0** | **0** | **995** | — |
+
+Four-shard read-only reconciliation after Run #202:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 792,272 | 156,036 | 638,469 | 3,319,311 | 0 |
+| 02 | 791,820 | 156,022 | 638,039 | 3,319,327 | 0 |
+| 03 | 792,013 | 156,094 | 638,170 | 3,319,343 | 0 |
+| 04 | 792,020 | 156,076 | 638,188 | 3,319,345 | 0 |
+| **Total** | **3,168,125** | **624,228** | **2,552,866** | — | **0** |
+
+The five persisted shard-01 cursor keys match Run #202 worker logs: **628495 / 623756 / 619112 / 623173 / 623864**. All five full-cycle flags remain incomplete; no cursor has yet passed the four-shard maximum **3,319,345**, wrapped below **242336**, and advanced back through the boundary.
+
+Controller #262 / [45984345087](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45984345087) is processing Run #202 and controls the next safe dispatch. No manual dispatch was used. The seven legacy low-boundary error-journal cases still require wraparound adjudication. This is a verified progress checkpoint, not full-pass completion.
