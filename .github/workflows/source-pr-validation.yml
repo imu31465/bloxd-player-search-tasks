@@ -89,8 +89,8 @@ jobs:
           # not the now-merged topic branches. Exact resolved SHAs are logged.
           - label: "Merged main — source writer"
             source_ref: "main"
-          - label: "Merged runner — scheduled writer"
-            source_ref: "runner"
+          - label: "Candidate PR #12 — Discord profile-change reports"
+            source_ref: "fix/all-profile-change-notifications-20261128"
 
     steps:
       - name: Clone the selected private source branch
