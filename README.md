@@ -1424,3 +1424,20 @@ Controller #263 / [45986445140](https://github.com/imu31465/bloxd-player-search-
 ### Forward-scan workload measured after Run #203
 
 The read-only inclusive cursor count (`Player.id >= cursor`) after Run #203 found **2,544,219 rows remaining**, all empty-cosmetics candidates. The five-worker split was **508,041 / 508,807 / 509,593 / 508,697 / 509,081**. There are no populated-cosmetics rows ahead of the current cursors. The below-boundary wraparound segment remains separate.
+
+
+## Verified Enrichment Runs #204–205 — 2026-11-27 UTC
+
+Runs #204 and #205 were independently verified against their cutover gates, prepare logs, all five exact worker logs, and notify-controller jobs. Both runs succeeded end to end, with all ten worker jobs and both controller-notification jobs successful. Both prepare logs pinned the same source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Run | GitHub Actions | Recorded / changed | Gone | Fetch errors | Probe 429 | Pending | Cursor ends (workers 0 / 1 / 2 / 3 / 4) |
+|---:|---|---:|---:|---:|---:|---:|---|
+| 204 | [45988744577](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45988744577) | 2,000 / 2,000 | 3 | 0 | 0 | 997 | 632510 / 627771 / 623132 / 627178 / 627864 |
+| 205 | [45990315805](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45990315805) | 2,000 / 2,000 | 1 | 0 | 0 | 999 | 634510 / 629776 / 625132 / 629178 / 629864 |
+| **Total** | **2 successful runs** | **4,000 / 4,000** | **4** | **0** | **0** | **1,996** | — |
+
+Each worker in both runs reached its expected per-worker fetch cap of 400; all recorded candidates changed, no fetch errors or probe429s occurred, and no unexpected abort was observed. The five worker cursors persisted by Run #205 are **634510 / 629776 / 625132 / 629178 / 629864**. These match the Run #205 log summaries. The corresponding continuation controllers #264 / [45990202383](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45990202383) and #265 / [45991826575](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45991826575) both completed successfully and handed off through the guarded controller chain.
+
+At the checkpoint after Run #205, progress state recorded `last_run_id=45990315805`, `total_runs_observed=190`, and `status=running`. Run #206 / [45993297959](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45993297959) had passed its cutover gate and prepare, pinning the same source SHA, and its five worker jobs were active. Controller #266 / [45992765078](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45992765078) was in the protected writer-window wait. Do not manually dispatch or overlap another writer. No post-Run-205 four-shard reconciliation is claimed while Run #206 is writing.
+
+All five full-cycle flags remain incomplete. The forward scan has not reached the current maximum ID, wrapped below boundary 242336, and advanced back through it. The seven low-boundary retry/A-gate cases also remain open for wraparound adjudication. This is a verified progress checkpoint, not full-pass completion.
