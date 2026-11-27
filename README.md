@@ -1772,45 +1772,60 @@ The continuation controller #285 / [46035592477](https://github.com/imu31465/blo
 All five worker cycles remain `wrapped=false` and `completed=false`. Each cursor must pass the current four-shard maximum **3,357,345**, wrap below **242336**, and advance back through the original boundary with zero pending work, errors, probe429s, and unresolved retry/A-gate cases. This checkpoint is not full-pass completion.
 
 
-## Profile refresh and notification behavior — verified 2026-11-28
+## Full-field profile refresh and Discord notifications — 2026-11-28
 
-The current enrich drip has **not** been converted to an unconditional
-24-hour full-table refresh. Its existing A-gate remains:
-- Players with empty cosmetics are unconditional social-profile fetch
-  candidates.
-- Players with populated cosmetics are fetched when the redirect/name probe
-  detects a name change; stable-name players can therefore still have other
-  profile fields become stale until the social sweep reaches them.
-- The five disjoint cursor workers retain the 400-fetch per-worker limit,
-  0.7-second spacing, retry cooldown, and earliest-pending cursor semantics.
+The normal enrichment path has now been changed from the old name/redirect
+A-gate to journal-based full-profile refresh. Source PR
+[#11](https://github.com/imu31465/bloxd-player-search/pull/11) merged to
+`runner` at `a2d8695bc6e1d1096fbfdb23b60ba5348a860090`. The fetch gate is now
+only the shared `bloxd_fetch_{id}` journal: a prior successful fetch is
+skipped for 24 hours; otherwise the profile is eligible regardless of whether
+its name or cosmetics changed. Recent `err`/`gone` entries have a 10-minute
+cooldown, and force IDs bypass cooldowns. Normal full-profile enrichment no
+longer performs the redirect/HEAD probe.
 
-The hourly social sweep remains scheduled at **:13 UTC** in
-`.github/workflows/sweep.yml`. It is the broad full-profile refresh path: it
-fetches player profiles while advancing five independent cursors, updates the
-complete player record (including cosmetics, name colour, ranks, social links,
-released games, and play statistics), and appends a snapshot when tracked
-display fields change. Do not describe the sweep as manual-only.
+The five disjoint workers remain unchanged: `--limit 1000`,
+`--fetch-cap 400` per worker, `--sleep 0.7`, independent `id % 5) cursors,
+and the existing retry/pending-cursor rules. The task workflow now invokes the
+new CLI without the removed `--probe-workers`/`--probe-retry` arguments.
+The public `sweep.yml` is now manual-only recovery; it is not part of the
+automatic writer schedule. Census retains its :47 UTC reservation, while the
+continuation controller serializes the bounded enrich batches through the
+shared writer lock.
 
-The reason Discord looked like it only reported name changes was a notification
-gap, not proof that the other fields were failing to update. The enrich drip
-already counted field changes but only put rename examples in its attachment.
-The social sweep wrote all fetched profile fields but intentionally sent
-notifications only for non-`super` rank changes, errors, or aborts; cosmetics,
-name-colour, links, and game changes could be silent.
+The earlier Discord issue was a separate notification gap. The old enrich
+notification exposed rename examples rather than per-player descriptions for
+all tracked fields; the old social sweep suppressed most non-rank profile
+changes. Source PR
+[#12](https://github.com/imu31465/bloxd-player-search/pull/12) merged to
+`runner` at `3e0aed333a9711f2abb05643684de8d2f0605528`. Both paths now produce
+safe per-player change summaries for name, name colour, cosmetics, ranks,
+social links, released games, and profile statistics. Social URLs and raw
+cosmetic values are omitted. Stats-only and `super`-only changes remain
+filtered to avoid noise. The webhook helper logs a delivered HTTP status, or
+an explicit missing-configuration / failure message.
 
-Source PR [#12](https://github.com/imu31465/bloxd-player-search/pull/12) was
-merged to `runner` at
-`3e0aed333a9711f2abb05643684de8d2f0605528`. It preserves the fetch and database
-write behavior while adding safe per-player reports for name, name colour,
-cosmetics, ranks, social links, released games, and profile statistics to both
-enrich and social-sweep notifications. Social URLs and raw cosmetic values
-are not included. Stats-only and `super`-only churn remain filtered to avoid
-notification noise. Webhook delivery now logs an explicit HTTP status; a
-missing webhook configuration or delivery failure is also logged.
+### Evidence and next live verification
+
+The older Enrich Run #234 / [46073101616](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46073101616)
+ran against source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`,
+before PR #11. Its five worker logs still recorded 2,000 successful profile
+fetches, zero fetch errors and zero probe 429s, with field-change totals of
+**1,812 name-colour**, **1,757 cosmetics**, **39 name**, **9 released-games**,
+and **1 rank** changes (categories may overlap per player). This confirmed
+that updates beyond names were already being saved; the problem was that the
+Discord messages did not present them.
 
 Candidate validation [Run #104](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46074878509)
-passed all 8 jobs against exact candidate source head
+passed all 8 jobs against exact candidate head
 `b2824f25bea28881b623b418235c507baeed383b`, including 44 unit/SQLite tests
-and the PostgreSQL shard-writer integration test. The subsequent merged
-runner head still requires its own post-merge validation and a live scheduled
-run before webhook delivery is claimed as verified.
+and the PostgreSQL shard-writer integration. A subsequent task workflow
+validation must confirm the merged production `runner` head
+`3e0aed333a9711f2abb05643684de8d2f0605528`; after that, inspect the first
+live enrich and manual sweep logs for the expected profile-change attachment
+and explicit Discord delivery HTTP status. Do not claim webhook delivery is
+confirmed until such a live log exists.
+
+Full initial refresh acceptance remains separate: every worker must complete
+its full cursor cycle and final four-shard reconciliation. Do not mark the
+enrichment dataset complete based on bounded successful batches.
