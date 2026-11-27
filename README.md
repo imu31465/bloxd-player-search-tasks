@@ -1772,20 +1772,45 @@ The continuation controller #285 / [46035592477](https://github.com/imu31465/blo
 All five worker cycles remain `wrapped=false` and `completed=false`. Each cursor must pass the current four-shard maximum **3,357,345**, wrap below **242336**, and advance back through the original boundary with zero pending work, errors, probe429s, and unresolved retry/A-gate cases. This checkpoint is not full-pass completion.
 
 
-## Full-field refresh correction — 2026-11-28
+## Profile refresh and notification behavior — verified 2026-11-28
 
-The earlier enrichment policy used a name/redirect A-gate for already-populated
-profiles. That meant a stable-name account could retain stale cosmetics, name
-colour, ranks, social links, or released games indefinitely. The policy is
-superseded: the current full-profile drip fetches every row with no successful
-profile fetch in the previous 24 hours, independent of name and cosmetics. It
-keeps the per-worker 400-fetch cap, 0.7-second pacing, five disjoint cursor
-partitions, retry cooldown, and earliest-pending cursor semantics. A successful
-fetch writes the complete current profile to `players` and appends a history
-snapshot when any tracked display field changes. Playtime and last-online are
-updated in the player row and stored on snapshots, but do not alone create a
-history row to avoid noisy activity churn.
+The current enrich drip has **not** been converted to an unconditional
+24-hour full-table refresh. Its existing A-gate remains:
+- Players with empty cosmetics are unconditional social-profile fetch
+  candidates.
+- Players with populated cosmetics are fetched when the redirect/name probe
+  detects a name change; stable-name players can therefore still have other
+  profile fields become stale until the social sweep reaches them.
+- The five disjoint cursor workers retain the 400-fetch per-worker limit,
+  0.7-second spacing, retry cooldown, and earliest-pending cursor semantics.
 
-The hourly social sweep is now manual-only recovery; the continuation
-controller still detects and serializes it when manually dispatched. Its
-automatic reserved slot was removed, leaving the :47 UTC census reservation.
+The hourly social sweep remains scheduled at **:13 UTC** in
+`.github/workflows/sweep.yml`. It is the broad full-profile refresh path: it
+fetches player profiles while advancing five independent cursors, updates the
+complete player record (including cosmetics, name colour, ranks, social links,
+released games, and play statistics), and appends a snapshot when tracked
+display fields change. Do not describe the sweep as manual-only.
+
+The reason Discord looked like it only reported name changes was a notification
+gap, not proof that the other fields were failing to update. The enrich drip
+already counted field changes but only put rename examples in its attachment.
+The social sweep wrote all fetched profile fields but intentionally sent
+notifications only for non-`super` rank changes, errors, or aborts; cosmetics,
+name-colour, links, and game changes could be silent.
+
+Source PR [#12](https://github.com/imu31465/bloxd-player-search/pull/12) was
+merged to `runner` at
+`3e0aed333a9711f2abb05643684de8d2f0605528`. It preserves the fetch and database
+write behavior while adding safe per-player reports for name, name colour,
+cosmetics, ranks, social links, released games, and profile statistics to both
+enrich and social-sweep notifications. Social URLs and raw cosmetic values
+are not included. Stats-only and `super`-only churn remain filtered to avoid
+notification noise. Webhook delivery now logs an explicit HTTP status; a
+missing webhook configuration or delivery failure is also logged.
+
+Candidate validation [Run #104](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46074878509)
+passed all 8 jobs against exact candidate source head
+`b2824f25bea28881b623b418235c507baeed383b`, including 44 unit/SQLite tests
+and the PostgreSQL shard-writer integration test. The subsequent merged
+runner head still requires its own post-merge validation and a live scheduled
+run before webhook delivery is claimed as verified.
