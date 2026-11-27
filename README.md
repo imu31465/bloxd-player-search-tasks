@@ -1802,6 +1802,12 @@ both paths, logs prepared report player-count and attachment byte-count, and
 adds regression tests. The webhook helper logs delivered HTTP status, missing
 configuration, or request failure.
 
+Source documentation PR [#14](https://github.com/imu31465/bloxd-player-search/pull/14)
+merged at `e8cb550ec77dcb9b41f99dee20646e85f12b37fa`; it synchronizes
+README_SYSTEMS with the per-player attachment format, super-only noise filter,
+and webhook/report diagnostics. It changes documentation only; the runtime
+code tested in Run #115 remains the same.
+
 ### Validation and live notification evidence
 
 Candidate PR #12 validation [Run #104](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46074878509)
