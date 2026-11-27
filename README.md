@@ -1419,3 +1419,8 @@ The persisted shard-01 cursors match the worker logs: **630505 / 625766 / 621127
 The error journal still contains 168 historical `:err` markers, of which 161 have later player-update and snapshot evidence. The 22 HTTP 502 cases from Run #199 remain resolved by the verified Run #201 retry. The seven outstanding cases are all below boundary 242336 and await wraparound fetch/A-gate adjudication.
 
 Controller #263 / [45986445140](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45986445140) is processing Run #203 and will control the next safe dispatch. No manual dispatch was used. All five cycle flags remain incomplete; this is a verified progress checkpoint, not full-pass completion.
+
+
+### Forward-scan workload measured after Run #203
+
+The read-only inclusive cursor count (`Player.id >= cursor`) after Run #203 found **2,544,219 rows remaining**, all empty-cosmetics candidates. The five-worker split was **508,041 / 508,807 / 509,593 / 508,697 / 509,081**. There are no populated-cosmetics rows ahead of the current cursors. The below-boundary wraparound segment remains separate.
