@@ -1819,12 +1819,17 @@ Discord messages did not present them.
 Candidate validation [Run #104](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46074878509)
 passed all 8 jobs against exact candidate head
 `b2824f25bea28881b623b418235c507baeed383b`, including 44 unit/SQLite tests
-and the PostgreSQL shard-writer integration. A subsequent task workflow
-validation must confirm the merged production `runner` head
-`3e0aed333a9711f2abb05643684de8d2f0605528`; after that, inspect the first
-live enrich and manual sweep logs for the expected profile-change attachment
-and explicit Discord delivery HTTP status. Do not claim webhook delivery is
-confirmed until such a live log exists.
+and the PostgreSQL shard-writer integration. Post-merge production validation
+[Run #106](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46075044898)
+also passed all 9 jobs. Its `Merged runner — scheduled profile writer` job
+cloned exact runner SHA `3e0aed333a9711f2abb05643684de8d2f0605528`, passed 49
+unit/SQLite tests (including the full-profile cooldown and per-field report
+tests), and passed `tests/verify_postgres_shard_writes.py` across four
+disposable PostgreSQL shards. Workflow YAML, read-only Neon permissions,
+live-token mint validation, gateway health/login and Altare migration tests
+also passed. The first live enrichment on this exact runner SHA and the
+Discord delivery status are still the production acceptance checks; don't
+claim them verified until their logs are inspected.
 
 Full initial refresh acceptance remains separate: every worker must complete
 its full cursor cycle and final four-shard reconciliation. Do not mark the
