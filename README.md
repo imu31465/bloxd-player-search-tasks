@@ -1450,13 +1450,13 @@ All five full-cycle flags remain incomplete. The forward scan has not reached th
 | Worker | Recorded | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
 |---:|---:|---:|---:|---:|---:|---:|---:|
 | 0 | 400 | 400 | 0 | 0 | 0 | 200 | 634510 → 636510 |
-| 1 | 400 | 400 | 0 | 1 | 0 | 200 | 629776 → 631096 |
+| 1 | 400 | 400 | 0 | 1 | 0 | 200 | 629776 → retry held |
 | 2 | 400 | 400 | 2 | 0 | 0 | 198 | 625132 → 627142 |
 | 3 | 400 | 400 | 0 | 0 | 0 | 200 | 629178 → 631178 |
 | 4 | 400 | 400 | 0 | 0 | 0 | 200 | 629864 → 631869 |
 | **Total** | **2,000** | **2,000** | **2** | **1** | **0** | **998** | — |
 
-Worker 1 recorded one HTTP 502 on player ID 631096. The error journal was verified as `bloxd_fetch_631096 = <timestamp>:err`; its player row remains on shard04 with an old 2026-10-26 profile timestamp and no snapshot, so there is no evidence of a later successful refresh. The worker correctly retained cursor 631096, and the persisted shard-01 cursor values match every Run #206 worker log: **636510 / 631096 / 627142 / 631178 / 631869**. This ID must be retried after the ten-minute failure cooldown; do not clear the journal or move the cursor manually. It is still pending, not resolved.
+Worker 1 recorded one HTTP 502 on worker-1 candidate. The error journal was verified as `corresponding `:err` attempt-journal entry`; its player row remains on shard04 with an old 2026-10-26 profile timestamp and no snapshot, so there is no evidence of a later successful refresh. The worker correctly retained cursor retained at pending retry, and the persisted shard-01 cursor values match every Run #206 worker log: **636510 / worker 1 held at retry cursor / 627142 / 631178 / 631869**. This ID must be retried after the ten-minute failure cooldown; do not clear the journal or move the cursor manually. It is still pending, not resolved.
 
 Four-shard read-only reconciliation after Run #206:
 
