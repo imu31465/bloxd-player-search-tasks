@@ -1284,3 +1284,35 @@ Run #196's 68 A-gate skips and Run #198's 129 A-gate skips were populated-cosmet
 At the checkpoint recorded here, Run #200 / [45979180445](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45979180445) was the scheduled active writer, pinned to the same source SHA. Its workers 1, 2, 3 and 4 had completed, while worker 0 was still running; controller #257 / [45979501652](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45979501652) was waiting in its protected writer-window loop. Do not dispatch another writer manually. The controller must catch up Run #200 after it finishes, preserve the pending error cursor, and dispatch the next safe batch. No clean post-Run-199 four-shard reconciliation is claimed while Run #200 is writing.
 
 All five full-cycle flags remain incomplete. The current forward scan is still far from the four-shard maximum, and the low-boundary retry cases still require a complete wraparound pass. This is a verified progress checkpoint, not full-pass completion.
+
+
+## Verified Enrichment Run #200 — 2026-11-27 UTC
+
+[Run #200 / 45979180445](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45979180445) completed successfully. The cutover gate, prepare, all five workers and notify-controller succeeded; prepare pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Worker | Recorded | Changed | Gone | Errors | Skipped | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 398 | 0 | 0 | 160 | 0 | 62 | 623490 → 623490 |
+| 1 | 400 | 400 | 2 | 0 | 0 | 0 | 198 | 617736 → 619746 |
+| 2 | 400 | 400 | 0 | 0 | 0 | 0 | 200 | 613102 → 615102 |
+| 3 | 400 | 400 | 1 | 0 | 0 | 0 | 199 | 617153 → 619158 |
+| 4 | 400 | 400 | 1 | 0 | 0 | 0 | 199 | 617844 → 619849 |
+| **Total** | **2,000** | **1,998** | **4** | **0** | **160** | **0** | **858** | — |
+
+Worker 0's cursor deliberately remained at **623490**. The 22 HTTP 502 failures from Run #199 occurred less than three minutes before Run #200 started. The runner's ten-minute failure cooldown kept them pending rather than immediately retrying them; the worker completed 400 other fetches, retained a pending set of 62, and did not advance past the earliest unresolved ID. This is intended retry protection, not evidence that those 22 profiles were repaired. Run #201 began at 2026-11-27T10:20:52Z, more than 17 minutes after the newest Run #199 error timestamp, so the failures are now eligible for a real retry. Verify Run #201 worker 0's log and subsequent player/snapshot timestamps before clearing this issue.
+
+Four-shard read-only reconciliation after Run #200:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 792,272 | 155,117 | 639,386 | 3,319,311 | 0 |
+| 02 | 791,820 | 155,110 | 638,949 | 3,319,327 | 0 |
+| 03 | 792,013 | 155,177 | 639,085 | 3,319,343 | 0 |
+| 04 | 792,020 | 155,162 | 639,102 | 3,319,345 | 0 |
+| **Total** | **3,168,125** | **620,566** | **2,556,522** | — | **0** |
+
+The five persisted shard-01 cursors exactly match Run #200 worker logs: **623490 / 619746 / 615102 / 619158 / 619849**. Using the inclusive query predicate (`Player.id >= cursor`), the forward-scan remainder is **2,550,436 rows**, split by worker as **509,443 / 510,010 / 510,798 / 509,901 / 510,284**. Of these, **2,549,899** have empty cosmetics and **537** have populated cosmetics; all 537 populated rows are in worker 0's current window and remain subject to the A-gate.
+
+Controller #260 / [45981232640](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45981232640) completed successfully and dispatched Run #201 / [45981325831](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45981325831). Run #201 passed its cutover gate and prepare, pinning the same source SHA; its five worker jobs were in progress or queued at the checkpoint. Run #201 is the sole active writer. Do not dispatch another run manually.
+
+`ENRICH_PROGRESS.json` now records Run #200, `last_run_id=45979180445`, `total_runs_observed=185`, and `status=running`; its five full-cycle flags remain false. The progress note has been refreshed to this Run #200 checkpoint. The seven older low-boundary cases remain open, and the 22 recent Run #199 HTTP 502 errors still require actual profile and snapshot evidence from the cooldown-expired retry.
