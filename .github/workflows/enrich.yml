@@ -190,6 +190,7 @@ jobs:
           # is eligible for a full-profile refresh, independent of its name.
           # Keep the 1,000-row inspection window, 400-fetch cap and 0.7-second
           # pacing; cooldown and cursor logic retain work safely.
+          # Source revision is resolved from runner for this batch; PR #11 removed the old redirect/name gate.
           ARGS=(--limit 1000 --sleep 0.7 --fetch-cap 400 \
                 --shard "${{ matrix.shard }}/5")
           if [ -n "$FORCE_IDS_INPUT" ]; then
