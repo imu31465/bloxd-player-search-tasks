@@ -1631,11 +1631,6 @@ All five full-cycle flags remain incomplete. No cursor has passed the current fo
 
 All five workers reached the configured 400-fetch cap. There were no HTTP fetch errors, probe 429s, or A-gate skips. Each worker retained its remaining candidates at the next cursor. Worker setup could not statically extract the SP builder from the current Bloxd bundle and initially lacked Playwright; the browser fallback installed Chromium, captured the live value, and passed mint validation on all five workers. These were recovered setup warnings, not token failures; `ABORTED (fetch cap 400 reached)` is the expected bounded-pass stop, not a job failure. All five worker jobs and the overall workflow concluded successfully.
 
-The continuation controller #281 / [46024684664](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024684664) processed Run #215 and dispatched Run #216 / [46024779632](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024779632). Run #216 passed cutover and prepare; its prepare log again pins source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Its five workers are active, so no post-Run #215 database reconciliation is included yet. Wait until Run #216 and all other writer jobs finish before the next four-shard read-only reconciliation.
-
-All five full-cycle flags remain incomplete. The cursors have not completed the required pass beyond the current four-shard maximum, wrap below 242336, and return through the original boundary. Continue the controller-managed chain; do not manually dispatch.
-
-
 ## Verified Enrichment Run #216 and four-shard reconciliation — 2026-11-27 UTC
 
 [Run #216 / 46024779632](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024779632) completed successfully. Cutover, prepare, all five worker jobs, and notify-controller passed. Each worker's invocation and environment confirm source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755` and arguments `--limit 1000 --fetch-cap 400 --probe-workers 1 --sleep 0.7 --probe-retry-rounds 3 --probe-retry-wait 120`.
