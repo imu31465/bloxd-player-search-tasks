@@ -1,10 +1,6 @@
-name: sweep
+name: sweep (manual recovery)
 
 on:
-  schedule:
-    # Hourly at :13 UTC; each run drives five parallel shards (each on its own
-    # runner IP). The shared writer lock leaves the :47 census slot free.
-    - cron: "13 * * * *"
   push:
     branches:
       - main
