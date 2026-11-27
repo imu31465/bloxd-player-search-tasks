@@ -93,7 +93,7 @@ jobs:
               raise SystemExit(0)
 
           # A five-minute controller poll also resumes a running chain after
-          # the scheduled census/sweep writer has had its reserved slot.
+          # the scheduled census writer has had its reserved slot.
           # Writers share player-search-writers, so don't race or starve them.
           if progress.get("status") != "running":
               raise SystemExit(0)
@@ -123,7 +123,7 @@ jobs:
               raise SystemExit(0)
 
           # Nothing is queued, no writer is active, and the next reserved
-          # sweep/census slot is far enough away for one bounded enrich batch.
+          # census slot is far enough away for one bounded enrich batch.
           print(f"0 schedule-resume running {minutes_to_writer:.1f}m-to-writer")
           PY
             if [[ ! -s /tmp/enrich-run-logs/selected-run.txt ]]; then
