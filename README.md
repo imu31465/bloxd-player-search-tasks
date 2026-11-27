@@ -1832,3 +1832,16 @@ Do not claim live Discord delivery is confirmed until the Actions log shows
 a 2xx response. Full initial refresh acceptance remains separate: all worker
 cursor cycles and final four-shard reconciliation must pass before marking the
 dataset complete.
+
+
+**Supersession notice:** Any earlier paragraphs in this run history that describe
+A-gate/name-redirect filtering, populated-cosmetics skip eligibility, HEAD
+probe retry, or the seven old low-boundary A-gate classifications are historical
+records of the previous runner and are no longer current acceptance rules.
+The new runner fetches profiles without a name/cosmetics gate whenever the
+shared success journal is absent or at least 24 hours old. Historical
+`:err` markers are retried after the 10-minute failure cooldown and must be
+cleared through actual fetch plus later row/snapshot evidence; do not use
+redirect/name equality to waive a profile. `probe429` counts belong only to
+the old implementation. New acceptance checks are per-run fetch errors,
+pending candidates, successful snapshot changes, and exact cursor reconciliation.
