@@ -1739,3 +1739,36 @@ The continuation controller #283 / [46030199088](https://github.com/imu31465/blo
 The controller #284 / [46034116473](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46034116473) successfully committed the Run #218 progress state and dispatched Run #219 / [46034217787](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46034217787). Run #219 is the sole active profile writer at this checkpoint. Consequently, **no Neon reconciliation after Run #218 has been performed yet**; wait for Run #219 and any subsequent writer/controller activity to finish before running four-shard read-only counts.
 
 All five worker cycles remain incomplete. The current five-cycle criteria remain unchanged: each cursor must pass the latest cross-shard maximum player ID, wrap below 242336, and advance back through the boundary with no pending work, fetch errors, probe429s, or unresolved retry/A-gate cases. This is not full-pass completion.
+
+## Verified Enrichment Run #219 and four-shard reconciliation — 2026-11-27 UTC
+
+[Run #219 / 46034217787](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46034217787) completed successfully. Cutover, prepare, all five workers, and notify-controller passed. Prepare pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. All worker logs independently confirm `--limit 1000 --fetch-cap 400 --probe-workers 1 --sleep 0.7 --probe-retry-rounds 3 --probe-retry-wait 120`.
+
+| Worker | Recorded | Changed | Gone | Errors | Probe 429 | Skipped | Pending | Cursor | Elapsed |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 663465 → 665470 | 478s |
+| 1 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 657641 → 659646 | 507s |
+| 2 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 654097 → 656102 | 458s |
+| 3 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 657168 → 659173 | 515s |
+| 4 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 658169 → 660169 | 526s |
+| **Total** | **2,000** | **2,000** | **3** | **0** | **0** | **0** | **2,997** | — | — |
+
+### Four-shard read-only reconciliation after Run #219
+
+All enrichment/census/sweep writer workflows were inactive during the following reads. The shard01 cursor metadata exactly matches all five Run #219 logs: **665470 / 659646 / 656102 / 659173 / 660169**.
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 801,447 | 164,534 | 639,814 | 3,357,327 | 0 |
+| 02 | 800,995 | 164,519 | 639,399 | 3,357,343 | 0 |
+| 03 | 801,176 | 164,608 | 639,481 | 3,357,345 | 0 |
+| 04 | 801,197 | 164,538 | 639,549 | 3,357,311 | 0 |
+| **Total** | **3,204,815** | **658,199** | **2,558,243** | **3,357,345** | **0** |
+
+The inclusive forward query (`Player.id >= worker cursor`, partitioned by `Player.id % 5`) now finds **2,549,442 rows remaining**, split by worker: **508,973 / 509,956 / 510,520 / 509,836 / 510,157**. All remaining rows currently have empty cosmetics; no populated-cosmetics rows are ahead of any cursor. There are zero orphan snapshots.
+
+The four-shard error-journal audit still finds **173** current `bloxd_fetch` error markers. **166** have both a later `players.updated_at` and later profile snapshot than their recorded error time. **Seven remain unresolved**, all below the original boundary **242336**; no above-boundary error remains unresolved, and all 173 have a player row. Individual IDs remain private. The seven low-boundary cases still require wraparound/A-gate adjudication (four empty-cosmetics cases, two populated redirect/name mismatches requiring fetch, and one populated exact-name case eligible for A-gate skip).
+
+The continuation controller #285 / [46035592477](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46035592477) has committed Run #219 progress (`last_run_id=46034217787`, `total_runs_observed=204`) and is waiting at the protected safe-writer guard. Do not manually dispatch or overlap writers.
+
+All five worker cycles remain `wrapped=false` and `completed=false`. Each cursor must pass the current four-shard maximum **3,357,345**, wrap below **242336**, and advance back through the original boundary with zero pending work, errors, probe429s, and unresolved retry/A-gate cases. This checkpoint is not full-pass completion.
