@@ -1572,3 +1572,37 @@ Two clean workers showed that a 600-row input window can underfill the 400-fetch
 Run #214 / [46019020845](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46019020845) started at 14:47:07Z, before the 1,000-row workflow change, so it still uses the prior 600-row selection window. Its worker 1 completed the pending retry and recorded 220 successful profiles, changed 176, skipped 380, with zero errors; its cursor advanced **646621 → 649617**. The other four workers were still in progress at the time of this checkpoint. The next controller-dispatched run will use the validated 1,000-row window. Do not manually dispatch or overlap writers.
 
 All five full-cycle flags remain incomplete. No cursor has passed the current four-shard maximum **3,357,345**, wrapped below **242336**, and advanced back through the original boundary. The seven low-boundary cases remain for wraparound adjudication. This is a verified progress checkpoint, not full-pass completion.
+
+
+## Verified Enrichment Run #214 — 2026-11-27 UTC
+
+[Run #214 / 46019020845](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46019020845) completed successfully. The cutover gate, prepare, all five workers, and notify-controller passed. Prepare pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Worker | Recorded | Changed | Gone | Errors | Skipped | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 0 | 0 | 0 | 200 | 653445 → 655445 |
+| 1 | 220 | 176 | 0 | 0 | 380 | 0 | 646621 → 649617 |
+| 2 | 400 | 400 | 0 | 0 | 0 | 200 | 644087 → 646087 |
+| 3 | 400 | 400 | 1 | 0 | 0 | 199 | 647138 → 649143 |
+| 4 | 400 | 400 | 0 | 0 | 0 | 200 | 648134 → 650134 |
+| **Total** | **1,820** | **1,776** | **1** | **0** | **380** | **799** | — |
+
+Worker 1 retried its retained Run #212 HTTP 502 candidate after the ten-minute cooldown and successfully refreshed it. The player's `updated_at` and latest snapshot are both **2026-11-27T14:48:48.566Z**, later than the original failure at 14:23:13Z. The worker completed without a new error and advanced from cursor **646621** to **649617**. This closes the last recent above-boundary HTTP 502 retry identified in Runs #206–212; the seven older unresolved records remain below boundary 242336.
+
+All five persisted cursor keys on shard 01 were read after Run #214 and exactly match the worker logs: **655445 / 649617 / 646087 / 649143 / 650134**.
+
+Four-shard read-only reconciliation after Run #214:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 801,447 | 162,038 | 642,085 | 3,357,327 | 0 |
+| 02 | 800,995 | 162,012 | 641,650 | 3,357,343 | 0 |
+| 03 | 801,176 | 162,102 | 641,749 | 3,357,345 | 0 |
+| 04 | 801,197 | 162,048 | 641,805 | 3,357,311 | 0 |
+| **Total** | **3,204,815** | **648,200** | **2,567,289** | — | **0** |
+
+The inclusive forward-scan query (`Player.id >= cursor`) found **2,559,454 rows remaining**, split by worker as **510,976 / 511,957 / 512,523 / 511,838 / 512,160**. All remaining rows currently have empty cosmetics; no populated-cosmetics rows remain ahead of the five cursors. The separate below-boundary wraparound and its seven retry/A-gate cases still remain.
+
+The continuation controller #278 / [46020583214](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46020583214) has committed the Run #214 progress record (`last_run_id=46019020845`, `total_runs_observed=199`, `status=running`) and is waiting for the next safe writer window. The validated 1,000-row selection window is now on the default branch; Run #214 used the old 600-row window because it began before that workflow change. The next controller-dispatched enrichment batch will use `--limit 1000` while keeping the per-worker fetch cap at 400 and pacing unchanged. Do not manually dispatch or overlap writers.
+
+All five full-cycle flags remain incomplete. No cursor has passed the current four-shard maximum **3,357,345**, wrapped below **242336**, and advanced back through the original boundary. This is a verified progress checkpoint, not full-pass completion.
