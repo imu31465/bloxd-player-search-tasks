@@ -13,8 +13,8 @@ source and player data are not copied here.
 | Workflow | Trigger | Work |
 |---|---|---|
 | `census.yml` | Hourly at :47 UTC + manual | Four parallel ID-range workers; shared moving frontier |
-| `sweep.yml` | Hourly at :13 UTC + manual | Five concurrent social-profile sweep workers |
-| `enrich.yml` | Daily + manual + `ENRICH_NOW.json` commit | Profile enrichment drip / selected IDs; the tracked file gives a one-shot initial run after the first sweep finishes |
+| `sweep.yml` | Manual recovery + cutover-file transition | Five concurrent social-profile recovery workers |
+| `enrich.yml` | Daily + manual + `ENRICH_NOW.json` commit | Full-profile refresh for every player whose last successful fetch is at least 24h old; also supports forced IDs |
 | `enrich-continuation.yml` | `workflow_run` after enrich/census/sweep completion + every 5 minutes + manual | Reconcile exact worker logs, update controller-owned progress, wait for the reserved-writer safety window, and dispatch exactly one next bounded enrichment batch |
 | `name-scan.yml` | Manual | Four-character name availability scan |
 | `source-pr-validation.yml` | Manual + workflow-file update | Test merged source `main`/`runner` and merged Altare `main`, run PostgreSQL integration suites on disposable services, verify runner secrets with read-only Neon SELECTs, and lint workflow YAML |
@@ -28,16 +28,14 @@ the read-only `DEPLOY_KEY` repository secret.
 The census, sweep, and enrich workflows share the repository-wide
 `player-search-writers` concurrency group. Only one of these database writers
 may run at a time; the five sweep shards still run in parallel inside their
-single sweep workflow. To fit the observed durations without building a queue,
-the sweep runs hourly at minute :13 UTC and census runs hourly at minute :47 UTC.
-The daily enrich job runs at 01:37 UTC, and its one-shot first run is started by
-`ENRICH_NOW.json` after the initial sweep. A pending scheduled run may wait
-behind the active writer; all three cursors are resumable so delayed runs can
-catch up without overlapping database writes. The continuation controller has
-its own non-cancelling lock, but it never bypasses `player-search-writers`: it
-checks all active/queued census, sweep, and enrich runs, preserves the 15-minute
-pre-slot guard at UTC :13/:47, and can wait up to 60 minutes for a safe window
-before dispatching one bounded batch.
+single manual recovery run. Census retains its hourly :47 UTC slot. The sweep
+is no longer scheduled: the full-profile enrich drip now revisits every player
+on its 24-hour successful-fetch cooldown, so a second hourly full-table writer
+would duplicate API work and slow the same cursor chain. The daily enrich job
+runs at 01:37 UTC, and `ENRICH_NOW.json` can still start a one-shot run. The
+continuation controller checks all active/queued census, manual sweep, and
+enrich runs, preserves a 15-minute guard around the census slot at UTC :47,
+and waits for a safe window before dispatching one bounded batch.
 
 ## Cutover lock
 
@@ -1772,3 +1770,22 @@ The four-shard error-journal audit still finds **173** current `bloxd_fetch` err
 The continuation controller #285 / [46035592477](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46035592477) has committed Run #219 progress (`last_run_id=46034217787`, `total_runs_observed=204`) and is waiting at the protected safe-writer guard. Do not manually dispatch or overlap writers.
 
 All five worker cycles remain `wrapped=false` and `completed=false`. Each cursor must pass the current four-shard maximum **3,357,345**, wrap below **242336**, and advance back through the original boundary with zero pending work, errors, probe429s, and unresolved retry/A-gate cases. This checkpoint is not full-pass completion.
+
+
+## Full-field refresh correction — 2026-11-28
+
+The earlier enrichment policy used a name/redirect A-gate for already-populated
+profiles. That meant a stable-name account could retain stale cosmetics, name
+colour, ranks, social links, or released games indefinitely. The policy is
+superseded: the current full-profile drip fetches every row with no successful
+profile fetch in the previous 24 hours, independent of name and cosmetics. It
+keeps the per-worker 400-fetch cap, 0.7-second pacing, five disjoint cursor
+partitions, retry cooldown, and earliest-pending cursor semantics. A successful
+fetch writes the complete current profile to `players` and appends a history
+snapshot when any tracked display field changes. Playtime and last-online are
+updated in the player row and stored on snapshots, but do not alone create a
+history row to avoid noisy activity churn.
+
+The hourly social sweep is now manual-only recovery; the continuation
+controller still detects and serializes it when manually dispatched. Its
+automatic reserved slot was removed, leaving the :47 UTC census reservation.
