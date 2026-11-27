@@ -1253,3 +1253,34 @@ All four shards remain at zero orphan snapshots. The read-only forward scan from
 The highest player ID remains **3,319,345**. All five worker-cycle flags remain incomplete; the cursors have not yet passed the maximum, wrapped below boundary **242336**, and advanced back through it. The seven known low-boundary retry/A-gate cases remain open for wraparound adjudication.
 
 Controller #246 / [45952735292](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45952735292) is processing Run #188 and controls the next safe dispatch. Do not start another writer manually or overlap the current controller. This is a verified progress checkpoint, not full-pass completion.
+
+
+## Verified Enrichment Runs #188–199 — 2026-11-27 UTC
+
+Runs #188–199 were individually checked against the exact GitHub Actions cutover gate, prepare job, five worker logs, and `notify-controller` job. All 12 runs completed successfully; all 60 worker jobs and all 12 notify-controller jobs passed. Every prepare log pinned the same private source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Run | Actions run | Recorded | Changed | Gone | Fetch errors | Skipped by A-gate | Pending | Cursor ends (workers 0 / 1 / 2 / 3 / 4) |
+|---:|---|---:|---:|---:|---:|---:|---:|---|
+| 188 | [45951756541](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45951756541) | 2,000 | 2,000 | 5 | 0 | 0 | 995 | 602130 / 595646 / 591027 / 595093 / 595794 |
+| 189 | [45954137269](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45954137269) | 2,000 | 2,000 | 4 | 0 | 0 | 996 | 604130 / 597651 / 593037 / 597093 / 597799 |
+| 190 | [45956962298](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45956962298) | 2,000 | 2,000 | 3 | 0 | 0 | 997 | 606150 / 599651 / 595042 / 599098 / 599809 |
+| 191 | [45958204147](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45958204147) | 2,000 | 2,000 | 5 | 0 | 0 | 995 | 608160 / 601676 / 597052 / 601113 / 601814 |
+| 192 | [45960883265](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45960883265) | 2,000 | 2,000 | 3 | 0 | 0 | 997 | 610165 / 603681 / 599062 / 603113 / 603814 |
+| 193 | [45963980854](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45963980854) | 2,000 | 2,000 | 4 | 0 | 0 | 996 | 612170 / 605706 / 601067 / 605138 / 605834 |
+| 194 | [45965397347](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45965397347) | 2,000 | 2,000 | 3 | 0 | 0 | 997 | 614170 / 607716 / 603072 / 607138 / 607834 |
+| 195 | [45968386026](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45968386026) | 2,000 | 2,000 | 2 | 1 | 0 | 998 | 616170 / 609721 / 605092 / 608803 / 609834 |
+| 196 | [45971933037](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45971933037) | 2,000 | 2,000 | 0 | 0 | 68 | 932 | 618170 / 611721 / 607092 / 611148 / 611834 |
+| 197 | [45973487812](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45973487812) | 2,000 | 2,000 | 3 | 3 | 0 | 997 | 620180 / 613726 / 609097 / 613148 / 613189 |
+| 198 | [45976608382](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45976608382) | 2,000 | 1,999 | 3 | 0 | 129 | 867 | 622190 / 615731 / 611102 / 615153 / 615839 |
+| 199 | [45978048145](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45978048145) | 2,000 | 2,000 | 2 | 22 | 0 | 998 | 623490 / 617736 / 613102 / 617153 / 617844 |
+| **Total** | **12 successful runs** | **24,000** | **23,999** | **37** | **26** | **197** | **11,765** | — |
+
+All 26 failed fetches in this series were HTTP 502 responses from the Bloxd/Cloudflare endpoint: one in Run #195, three in Run #197, and 22 consecutive IDs in worker 0 of Run #199. These failures were recorded as `:err`, not treated as successful or missing profiles. The cursor selection is inclusive (`Player.id >= cursor`), and `choose_resume_cursor` retains the earliest unresolved ID, so these rows remain eligible for later attempts rather than being passed over. The ten-minute failure cooldown intentionally keeps a just-failed ID pending without immediately hitting the endpoint again.
+
+A read-only cross-shard audit of the 26 error IDs found later player-update and snapshot evidence for **4**; **22** still had no later profile evidence when checked. All 22 are empty-cosmetics candidates in worker 0 and remain queued at the earliest retry cursor **623490**. The next pass must re-attempt them after cooldown and verify successful profile-update and snapshot timestamps; do not clear their error status manually or infer success from cursor advancement. The earlier seven low-boundary cases below 242336 remain a separate wraparound requirement.
+
+Run #196's 68 A-gate skips and Run #198's 129 A-gate skips were populated-cosmetics rows confirmed unchanged by the redirect/name probe; their cursors advanced while the 400-fetch cap remained respected. No run in #188–199 recorded probe429.
+
+At the checkpoint recorded here, Run #200 / [45979180445](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45979180445) was the scheduled active writer, pinned to the same source SHA. Its workers 1, 2, 3 and 4 had completed, while worker 0 was still running; controller #257 / [45979501652](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45979501652) was waiting in its protected writer-window loop. Do not dispatch another writer manually. The controller must catch up Run #200 after it finishes, preserve the pending error cursor, and dispatch the next safe batch. No clean post-Run-199 four-shard reconciliation is claimed while Run #200 is writing.
+
+All five full-cycle flags remain incomplete. The current forward scan is still far from the four-shard maximum, and the low-boundary retry cases still require a complete wraparound pass. This is a verified progress checkpoint, not full-pass completion.
