@@ -652,7 +652,7 @@ jobs:
         working-directory: src
         run: python -m unittest discover -s tests -v
 
-      - name: Seed a disposable PostgreSQL schema for maintenance smoke tests
+      - name: Seed raw and compact rows in disposable PostgreSQL
         working-directory: src
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5438/postgres
@@ -661,30 +661,55 @@ jobs:
           from tools.update_frontier import bootstrap_app_env
           bootstrap_app_env()
           from app import app, db, Meta, Player, PlayerSnapshot
+          from sqlalchemy import text
+          from tools.name_codec import encode_name
 
+          visible_name = "ExtremeCrawdad123456"
           with app.app_context():
-              player = Player(
-                  id=12345,
-                  name="ExtremeCrawdad123456",
-                  name_norm="ExtremeCrawdad123456",
-              )
-              db.session.add(player)
-              db.session.flush()
-              db.session.add(PlayerSnapshot(
-                  player_id=12345,
-                  name="ExtremeCrawdad123456",
-                  name_norm="ExtremeCrawdad123456",
-              ))
+              for player_id in (12345, 12346):
+                  player = Player(
+                      id=player_id,
+                      name=visible_name,
+                      name_norm=visible_name,
+                  )
+                  db.session.add(player)
+                  db.session.flush()
+                  db.session.add(PlayerSnapshot(
+                      player_id=player_id,
+                      name=visible_name,
+                      name_norm=visible_name,
+                  ))
               db.session.add(Meta(key="bloxd_fetch_12345", value="1:ok"))
               db.session.commit()
-          print("Disposable PostgreSQL schema and representative rows created.")
+
+              # Bypass the ORM type decorator so the migration sees one true
+              # legacy raw value and one already-compressed value in each table.
+              with db.engine.begin() as connection:
+                  for table in ("players", "player_snapshots"):
+                      id_column = "id" if table == "players" else "player_id"
+                      connection.execute(
+                          text(f"UPDATE {table} SET name=:name WHERE {id_column}=12345"),
+                          {"name": visible_name},
+                      )
+                      connection.execute(
+                          text(f"UPDATE {table} SET name=:name WHERE {id_column}=12346"),
+                          {"name": encode_name(visible_name)},
+                      )
+          print("Disposable PostgreSQL schema seeded with legacy, compact, and expired-marker rows.")
           PY
 
-      - name: Smoke-test migration dry-run on disposable PostgreSQL
+      - name: Smoke-test reversible name migration in dry-run mode on disposable PostgreSQL
         working-directory: src
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5438/postgres
-        run: python tools/migrate_name_compression.py --sample-size 10
+        run: |
+          set -euo pipefail
+          python tools/migrate_name_compression.py --sample-size 10 | tee /tmp/name-compress-dry-run.log
+          grep -Eq 'raw_pattern_candidates=1; compact_before=1; sample=1; sample_changed=1' /tmp/name-compress-dry-run.log
+          grep -Eq 'sample_saved=[1-9][0-9]*' /tmp/name-compress-dry-run.log
+          python tools/migrate_name_compression.py --decompress --sample-size 10 | tee /tmp/name-decompress-dry-run.log
+          grep -Eq 'raw_pattern_candidates=1; compact_before=1; sample=1; sample_changed=1' /tmp/name-decompress-dry-run.log
+          grep -Eq 'sample_saved=-?[1-9][0-9]*' /tmp/name-decompress-dry-run.log
 
       - name: Smoke-test expired-marker prune dry-run on disposable PostgreSQL
         working-directory: src
