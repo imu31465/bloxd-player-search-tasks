@@ -188,12 +188,12 @@ jobs:
           # Five independent modulo partitions use isolated cursor keys and
           # runner IPs; this mirrors the already-proven 5-worker social sweep.
           # Empty-cosmetics rows are unconditional social-fetch candidates;
-          # the runner now skips their redundant HEAD probes. A 600-row
-          # window leaves a 1.5x buffer over the 400-fetch cap at the observed
-          # candidate density while reducing DB work and probe volume. Verify
-          # 400 fetches per worker in the next live run; revert to 1,000 if
-          # any worker has a candidate shortage.
-          ARGS=(--limit 600 --probe-workers 1 --probe-retry-rounds 3 \
+          # the runner now skips their redundant HEAD probes. Recent live
+          # runs found candidate shortages in a 600-row window (224 and 288
+          # fetches on otherwise clean workers). Use the pre-tested 1,000-row
+          # window to absorb A-gate/cooldown skips; the 400-fetch cap and
+          # 0.7-second per-fetch pacing remain unchanged.
+          ARGS=(--limit 1000 --probe-workers 1 --probe-retry-rounds 3 \
                 --probe-retry-wait 120 --sleep 0.7 --fetch-cap 400 \
                 --shard "${{ matrix.shard }}/5")
           if [ -n "$FORCE_IDS_INPUT" ]; then
