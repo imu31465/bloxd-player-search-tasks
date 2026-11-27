@@ -1384,3 +1384,8 @@ Four-shard read-only reconciliation after Run #202:
 The five persisted shard-01 cursor keys match Run #202 worker logs: **628495 / 623756 / 619112 / 623173 / 623864**. All five full-cycle flags remain incomplete; no cursor has yet passed the four-shard maximum **3,319,345**, wrapped below **242336**, and advanced back through the boundary.
 
 Controller #262 / [45984345087](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45984345087) is processing Run #202 and controls the next safe dispatch. No manual dispatch was used. The seven legacy low-boundary error-journal cases still require wraparound adjudication. This is a verified progress checkpoint, not full-pass completion.
+
+
+### Forward-scan workload measured after Run #202
+
+A read-only count using the five persisted inclusive cursor predicates (`Player.id >= cursor`) found **2,546,225 rows remaining**, all with empty cosmetics and therefore unconditional social-fetch candidates. The current split is **508,442 / 509,208 / 509,996 / 509,098 / 509,481** for workers 0–4. No populated-cosmetics rows remain ahead of the current five cursors; this count excludes the separate below-boundary wraparound pass.
