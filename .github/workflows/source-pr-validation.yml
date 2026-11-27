@@ -593,6 +593,20 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5438:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Clone the exact private maintenance PR branch
         id: source
@@ -637,3 +651,49 @@ jobs:
       - name: Run complete unit and SQLite test suite
         working-directory: src
         run: python -m unittest discover -s tests -v
+
+      - name: Seed a disposable PostgreSQL schema for maintenance smoke tests
+        working-directory: src
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5438/postgres
+        run: |
+          python - <<'PY'
+          from tools.update_frontier import bootstrap_app_env
+          bootstrap_app_env()
+          from app import app, db, Meta, Player, PlayerSnapshot
+
+          with app.app_context():
+              player = Player(
+                  id=12345,
+                  name="ExtremeCrawdad123456",
+                  name_norm="ExtremeCrawdad123456",
+              )
+              db.session.add(player)
+              db.session.flush()
+              db.session.add(PlayerSnapshot(
+                  player_id=12345,
+                  name="ExtremeCrawdad123456",
+                  name_norm="ExtremeCrawdad123456",
+              ))
+              db.session.add(Meta(key="bloxd_fetch_12345", value="1:ok"))
+              db.session.commit()
+          print("Disposable PostgreSQL schema and representative rows created.")
+          PY
+
+      - name: Smoke-test migration dry-run on disposable PostgreSQL
+        working-directory: src
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5438/postgres
+        run: python tools/migrate_name_compression.py --sample-size 10
+
+      - name: Smoke-test expired-marker prune dry-run on disposable PostgreSQL
+        working-directory: src
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5438/postgres
+        run: python tools/prune_expired_meta_attempts.py --minimum-age-hours 24
+
+      - name: Smoke-test VACUUM storage dry-run on disposable PostgreSQL
+        working-directory: src
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5438/postgres
+        run: python tools/vacuum_meta_storage.py
