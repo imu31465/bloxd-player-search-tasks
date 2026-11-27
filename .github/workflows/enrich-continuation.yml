@@ -109,7 +109,7 @@ jobs:
           from datetime import datetime, timezone
           now = datetime.now(timezone.utc)
           upcoming = []
-          for minute in (13, 47):  # hourly sweep and census reservations (UTC)
+          for minute in (47,):  # hourly census reservation (UTC)
               slot = now.replace(minute=minute, second=0, microsecond=0)
               if slot <= now:
                   slot = slot.replace(hour=slot.hour)  # keep timezone-aware value
@@ -526,17 +526,17 @@ jobs:
           ]
           now = datetime.now(timezone.utc)
           deltas = []
-          for minute in (13, 47):
+          for minute in (47,)
               slot = now.replace(minute=minute, second=0, microsecond=0)
               if slot <= now:
                   slot += timedelta(hours=1)
               deltas.append((slot - now).total_seconds() / 60)
           minutes_to_writer = min(deltas)
-          # Scheduled workflows can appear a couple of minutes after their cron
-          # minute. Keep a five-minute arrival grace after each reserved slot so
-          # continuation cannot acquire the shared lock before the writer appears.
+          # The scheduled census can appear a couple of minutes after :47 UTC.
+          # Keep a five-minute arrival grace so continuation cannot acquire the
+          # shared lock before that writer appears. Manual sweeps are checked above.
           recent_slot_ages = []
-          for minute in (13, 47):
+          for minute in (47,)
               slot = now.replace(minute=minute, second=0, microsecond=0)
               if slot > now:
                   slot -= timedelta(hours=1)
