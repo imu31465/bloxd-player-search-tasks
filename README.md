@@ -1389,3 +1389,33 @@ Controller #262 / [45984345087](https://github.com/imu31465/bloxd-player-search-
 ### Forward-scan workload measured after Run #202
 
 A read-only count using the five persisted inclusive cursor predicates (`Player.id >= cursor`) found **2,546,225 rows remaining**, all with empty cosmetics and therefore unconditional social-fetch candidates. The current split is **508,442 / 509,208 / 509,996 / 509,098 / 509,481** for workers 0–4. No populated-cosmetics rows remain ahead of the current five cursors; this count excludes the separate below-boundary wraparound pass.
+
+
+## Verified Enrichment Run #203 — 2026-11-27 UTC
+
+[Run #203 / 45985015997](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45985015997) completed successfully. The cutover gate, prepare, all five workers, and notify-controller passed. The prepare job pinned private source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Each worker's log confirmed zero enriched-profile HEAD probes; the full 600-row input window consisted of empty-cosmetics rows.
+
+| Worker | Recorded | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 1 | 0 | 0 | 199 | 628495 → 630505 |
+| 1 | 400 | 400 | 1 | 0 | 0 | 199 | 623756 → 625766 |
+| 2 | 400 | 400 | 3 | 0 | 0 | 197 | 619112 → 621127 |
+| 3 | 400 | 400 | 1 | 0 | 0 | 199 | 623173 → 625178 |
+| 4 | 400 | 400 | 0 | 0 | 0 | 200 | 623864 → 625864 |
+| **Total** | **2,000** | **2,000** | **6** | **0** | **0** | **994** | — |
+
+Four-shard read-only reconciliation after Run #203:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 792,272 | 156,536 | 637,972 | 3,319,311 | 0 |
+| 02 | 791,820 | 156,525 | 637,541 | 3,319,327 | 0 |
+| 03 | 792,013 | 156,592 | 637,674 | 3,319,343 | 0 |
+| 04 | 792,020 | 156,575 | 637,691 | 3,319,345 | 0 |
+| **Total** | **3,168,125** | **626,228** | **2,550,878** | — | **0** |
+
+The persisted shard-01 cursors match the worker logs: **630505 / 625766 / 621127 / 625178 / 625864**. A read-only count using the five inclusive cursor predicates found **2,544,219 forward-scan rows remaining**, all empty-cosmetics candidates, split **508,041 / 508,807 / 509,593 / 508,697 / 509,081** for workers 0–4. There are no populated-cosmetics rows ahead of the current cursors. The separate below-boundary wraparound pass remains open.
+
+The error journal still contains 168 historical `:err` markers, of which 161 have later player-update and snapshot evidence. The 22 HTTP 502 cases from Run #199 remain resolved by the verified Run #201 retry. The seven outstanding cases are all below boundary 242336 and await wraparound fetch/A-gate adjudication.
+
+Controller #263 / [45986445140](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45986445140) is processing Run #203 and will control the next safe dispatch. No manual dispatch was used. All five cycle flags remain incomplete; this is a verified progress checkpoint, not full-pass completion.
