@@ -2,59 +2,59 @@
   "status": "running",
   "started_at": "2026-11-24T04:10:08Z",
   "starting_run_id": 45324488471,
-  "total_runs_observed": 166,
+  "total_runs_observed": 167,
   "completed_shards": [],
-  "last_run_id": 45939752204,
-  "last_seen_at": "2026-11-27T04:35:38.206941+00:00",
+  "last_run_id": 45941951918,
+  "last_seen_at": "2026-11-27T04:58:38.192143+00:00",
   "latest_workers": {
     "0": {
-      "cursor_start": 586080,
-      "cursor_end": 588090,
+      "cursor_start": 588090,
+      "cursor_end": 590090,
+      "err": 0,
+      "probe429": 0,
+      "pending": 200,
+      "abort_reason": "fetch cap 400 reached",
+      "summary": "2026-11-27T04:57:19.4382969Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 396 games 19 name 26), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 200 · cursor 588090->590090 · 555s · ABORTED (fetch cap 400 reached) [mode=cursor shard=0/5]",
+      "retry_count": 0
+    },
+    "1": {
+      "cursor_start": 581601,
+      "cursor_end": 583606,
       "err": 0,
       "probe429": 0,
       "pending": 199,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-27T04:32:31.0119825Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 399 name 38 games 7), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 199 · cursor 586080->588090 · 444s · ABORTED (fetch cap 400 reached) [mode=cursor shard=0/5]",
+      "summary": "2026-11-27T04:57:05.9889134Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 399 games 19 name 28), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 199 · cursor 581601->583606 · 522s · ABORTED (fetch cap 400 reached) [mode=cursor shard=1/5]",
       "retry_count": 0
     },
-    "1": {
-      "cursor_start": 579586,
-      "cursor_end": 581601,
+    "2": {
+      "cursor_start": 577012,
+      "cursor_end": 579012,
+      "err": 0,
+      "probe429": 0,
+      "pending": 200,
+      "abort_reason": "fetch cap 400 reached",
+      "summary": "2026-11-27T04:57:58.7776765Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 399 name 42 games 10), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 200 · cursor 577012->579012 · 580s · ABORTED (fetch cap 400 reached) [mode=cursor shard=2/5]",
+      "retry_count": 0
+    },
+    "3": {
+      "cursor_start": 581043,
+      "cursor_end": 583053,
       "err": 0,
       "probe429": 0,
       "pending": 198,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-27T04:31:54.5193622Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 399 name 38 games 22), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 198 · cursor 579586->581601 · 399s · ABORTED (fetch cap 400 reached) [mode=cursor shard=1/5]",
-      "retry_count": 0
-    },
-    "2": {
-      "cursor_start": 575012,
-      "cursor_end": 577012,
-      "err": 0,
-      "probe429": 0,
-      "pending": 200,
-      "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-27T04:34:57.4096333Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 399 name 38 games 13 ranks 1), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 200 · cursor 575012->577012 · 554s · ABORTED (fetch cap 400 reached) [mode=cursor shard=2/5]",
-      "retry_count": 0
-    },
-    "3": {
-      "cursor_start": 579043,
-      "cursor_end": 581043,
-      "err": 0,
-      "probe429": 0,
-      "pending": 200,
-      "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-27T04:34:43.7379279Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 400 games 10 name 25), refreshed 400, snapshots 400, gone 0, err 0, skipped 0, pending 200 · cursor 579043->581043 · 570s · ABORTED (fetch cap 400 reached) [mode=cursor shard=3/5]",
+      "summary": "2026-11-27T04:55:57.0773611Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 399 name 24 games 17), refreshed 400, snapshots 400, gone 2, err 0, skipped 0, pending 198 · cursor 581043->583053 · 472s · ABORTED (fetch cap 400 reached) [mode=cursor shard=3/5]",
       "retry_count": 0
     },
     "4": {
-      "cursor_start": 579739,
-      "cursor_end": 581744,
+      "cursor_start": 581744,
+      "cursor_end": 583749,
       "err": 0,
       "probe429": 0,
       "pending": 199,
       "abort_reason": "fetch cap 400 reached",
-      "summary": "2026-11-27T04:34:44.3746625Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 398 name 39 games 11), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 199 · cursor 579739->581744 · 552s · ABORTED (fetch cap 400 reached) [mode=cursor shard=4/5]",
+      "summary": "2026-11-27T04:55:02.3469812Z 🧬 bloxd enrich: ok 400, changed 400 (colour 400 cosmetics 398 name 38 games 10), refreshed 400, snapshots 400, gone 1, err 0, skipped 0, pending 199 · cursor 581744->583749 · 406s · ABORTED (fetch cap 400 reached) [mode=cursor shard=4/5]",
       "retry_count": 0
     }
   },
