@@ -1316,3 +1316,43 @@ The five persisted shard-01 cursors exactly match Run #200 worker logs: **623490
 Controller #260 / [45981232640](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45981232640) completed successfully and dispatched Run #201 / [45981325831](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45981325831). Run #201 passed its cutover gate and prepare, pinning the same source SHA; its five worker jobs were in progress or queued at the checkpoint. Run #201 is the sole active writer. Do not dispatch another run manually.
 
 `ENRICH_PROGRESS.json` now records Run #200, `last_run_id=45979180445`, `total_runs_observed=185`, and `status=running`; its five full-cycle flags remain false. The progress note has been refreshed to this Run #200 checkpoint. The seven older low-boundary cases remain open, and the 22 recent Run #199 HTTP 502 errors still require actual profile and snapshot evidence from the cooldown-expired retry.
+
+
+## Verified Enrichment Run #201 — 2026-11-27 UTC
+
+[Run #201 / 45981325831](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45981325831) completed successfully. The cutover gate, prepare, all five workers and notify-controller passed. The prepare job pinned private source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Worker | Recorded | Changed | Gone | Errors | Skipped | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 68 | 62 | 0 | 0 | 532 | 0 | 0 | 623490 → 626486 |
+| 1 | 400 | 400 | 2 | 0 | 0 | 0 | 198 | 619746 → 621756 |
+| 2 | 400 | 400 | 1 | 0 | 0 | 0 | 199 | 615102 → 617107 |
+| 3 | 400 | 400 | 1 | 0 | 0 | 0 | 199 | 619158 → 621163 |
+| 4 | 400 | 400 | 2 | 0 | 0 | 0 | 198 | 619849 → 621859 |
+| **Total** | **1,668** | **1,662** | **6** | **0** | **532** | **0** | **794** | — |
+
+Worker 0 was handling its retained Run #199 retry cursor. Its A-gate probed 537 populated-cosmetics profiles; 63 empty-cosmetics profiles bypassed the redundant HEAD request. It skipped 532 unchanged profiles, fetched 68, and advanced the cursor to 626486 with no fetch error or pending candidate reported in the controller's validated `ENRICH_PROGRESS.json`. The other four workers each reached the intended fetch cap of 400.
+
+### Run #199 HTTP 502 retry audit — resolved
+
+The 22 IDs that failed with HTTP 502 in Run #199 were all re-evaluated after the ten-minute failure cooldown. A fresh read-only lookup across all four shards found every one of the 22 now has both `players.updated_at` and its latest `player_snapshots.observed_at` later than that ID's original error timestamp:
+- shard01: 6 / 6 resolved
+- shard02: 6 / 6 resolved
+- shard03: 7 / 7 resolved
+- shard04: 3 / 3 resolved
+
+No one-off cursor rewrite or clearing of error-journal rows was used. The retry was performed through the regular cursor worker. The global error-journal review now has 168 historical `:err` markers, of which **161** have later player-update and snapshot evidence; the remaining **seven** are the known low-boundary cases below 242336 and still require wraparound adjudication.
+
+Four-shard read-only reconciliation after Run #201:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 792,272 | 155,535 | 638,968 | 3,319,311 | 0 |
+| 02 | 791,820 | 155,525 | 638,534 | 3,319,327 | 0 |
+| 03 | 792,013 | 155,594 | 638,668 | 3,319,343 | 0 |
+| 04 | 792,020 | 155,574 | 638,690 | 3,319,345 | 0 |
+| **Total** | **3,168,125** | **622,228** | **2,554,860** | — | **0** |
+
+The persisted shard-01 cursor keys match the five Run #201 logs: **626486 / 621756 / 617107 / 621163 / 621859**. All five full-cycle flags remain incomplete; no cursor has crossed the four-shard maximum, wrapped below 242336, and returned through the boundary.
+
+Controller #261 / [45982767152](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45982767152) completed successfully and dispatched Run #202 / [45982866712](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45982866712). Run #202 passed its cutover gate and prepare, pinned the same source SHA, and had its five workers in progress at this checkpoint. Run #202 is the sole active writer; do not dispatch another writer manually or overlap it. This is a verified checkpoint, not full-pass completion.
