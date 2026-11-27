@@ -526,7 +526,7 @@ jobs:
           ]
           now = datetime.now(timezone.utc)
           deltas = []
-          for minute in (47,)
+          for minute in (47,):
               slot = now.replace(minute=minute, second=0, microsecond=0)
               if slot <= now:
                   slot += timedelta(hours=1)
@@ -536,7 +536,7 @@ jobs:
           # Keep a five-minute arrival grace so continuation cannot acquire the
           # shared lock before that writer appears. Manual sweeps are checked above.
           recent_slot_ages = []
-          for minute in (47,)
+          for minute in (47,):
               slot = now.replace(minute=minute, second=0, microsecond=0)
               if slot > now:
                   slot -= timedelta(hours=1)
