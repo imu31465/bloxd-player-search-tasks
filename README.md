@@ -1107,3 +1107,44 @@ Four-shard read-only reconciliation after Run #184:
 A read-only count using the five current cursor predicates found **2,581,945 forward-scan rows remaining**, all empty-cosmetics candidates, split by worker as **515,312 / 516,423 / 517,209 / 516,309 / 516,692**. This excludes the separate low-ID wraparound acceptance work.
 
 All five full-cycle flags remain incomplete. No cursor has passed the current four-shard maximum **3,319,345**, wrapped below **242336**, and advanced back through the boundary. At the time of this checkpoint the continuation controller was still in its protected reserved-writer wait after processing Run #184; the next bounded pass must remain controller-dispatched after the sweep/census windows clear. This is a progress checkpoint, not full-pass completion.
+
+
+## Verified Enrichment Run #185 — 2026-11-27 UTC
+
+[Run #185 / 45947876645](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45947876645) completed successfully. The cutover gate, prepare, all five exact worker jobs, and notify-controller succeeded. All five workers used the pinned private source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`; each stopped only at the intended 400-fetch cap. No fetch errors or probe 429s were present.
+
+| Worker | Fetched | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 0 | 0 | 0 | 200 | 594100 → 596105 |
+| 1 | 400 | 400 | 1 | 0 | 0 | 199 | 587621 → 589626 |
+| 2 | 400 | 400 | 1 | 0 | 0 | 199 | 583012 → 585017 |
+| 3 | 400 | 400 | 2 | 0 | 0 | 198 | 587053 → 589068 |
+| 4 | 400 | 400 | 0 | 0 | 0 | 200 | 587769 → 589769 |
+| **Total** | **2,000** | **2,000** | **4** | **0** | **0** | **996** | — |
+
+After Run #185, the five persisted shard-01 cursor meta values were independently read and matched the worker logs exactly: **596105 / 589626 / 585017 / 589068 / 589769**.
+
+Four-shard read-only reconciliation after Run #185:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 792,272 | 147,611 | 646,866 | 3,319,311 | 0 |
+| 02 | 791,820 | 147,616 | 646,420 | 3,319,327 | 0 |
+| 03 | 792,013 | 147,691 | 646,538 | 3,319,343 | 0 |
+| 04 | 792,020 | 147,651 | 646,586 | 3,319,345 | 0 |
+| **Total** | **3,168,125** | **590,569** | **2,586,410** | — | **0** |
+
+A read-only forward-scan count using the five current modulo-5 cursors found **2,579,941 rows remaining**: **2,579,912 currently empty-cosmetics** and 29 with populated cosmetics, split by worker as follows.
+
+| Worker | Remaining rows | Empty cosmetics | Populated cosmetics |
+|---:|---:|---:|---:|
+| 0 | 514,912 | 514,912 | 0 |
+| 1 | 516,022 | 516,018 | 4 |
+| 2 | 516,808 | 516,806 | 2 |
+| 3 | 515,907 | 515,894 | 13 |
+| 4 | 516,292 | 516,282 | 10 |
+| **Total** | **2,579,941** | **2,579,912** | **29** |
+
+The four shards still have zero orphan snapshots. The current maximum ID is **3,319,345**; none of the five cursors has reached it, wrapped below **242336**, and advanced back through that boundary. The seven low-boundary cases from the error-journal audit remain outstanding for actual wraparound fetch/A-gate adjudication. All five worker-cycle flags remain incomplete.
+
+Controller #243 / [45948677568](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45948677568) processed Run #185 and dispatched exactly one next bounded run, Run #186 / [45948742287](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45948742287). Run #186 is the current active writer; do not start another writer manually. This is a verified progress checkpoint, not full-pass completion.
