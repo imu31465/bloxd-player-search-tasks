@@ -1476,3 +1476,25 @@ All five full-cycle flags remain incomplete. No cursor has passed the current ma
 
 
 A four-shard read-only audit of all current `:err` attempt-journal entries found **169** records. For **161**, both the player row's `updated_at` and latest snapshot timestamp are later than the recorded error; **8** had no later profile evidence. These eight split into the seven legacy records below boundary 242336 and the single new Run #206 retry still held in worker 1. There were no missing player rows or mixed timestamp cases among the 169 journaled IDs. The journal is intentionally not treated as a success ledger: a later batch refresh can provide definitive profile and snapshot evidence without changing an older `:err` marker. Do not expose individual player IDs or clear unresolved error markers manually.
+
+
+## Verified Enrichment Run #207 — 2026-11-27 UTC
+
+[Run #207 / 45996795067](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45996795067) completed successfully. Its cutover gate, prepare, all five workers, and notify-controller passed. Prepare pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Worker | Recorded | Changed | Gone | Errors | Skipped | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 0 | 0 | 0 | 200 | 636510 → 640315 |
+| 1 | 400 | 399 | 1 | 0 | 135 | 64 | 631096 → 633776 |
+| 2 | 400 | 400 | 2 | 0 | 0 | 198 | 627142 → 629152 |
+| 3 | 400 | 400 | 0 | 1 | 0 | 200 | 631178 → 631203 |
+| 4 | 400 | 400 | 0 | 0 | 0 | 200 | 631869 → 633869 |
+| **Total** | **2,000** | **1,999** | **3** | **1** | **135** | **862** | — |
+
+The worker-1 retry cursor from Run #206 advanced through the cooldown-expired retry window without another fetch error. The four-shard `updated_at` and snapshot comparison is still required before that earlier failed profile is formally marked recovered.
+
+Worker 3 encountered one new HTTP 502 after its initial successful fetches. Its cursor was retained at the first unresolved candidate, and the journal records the error; this is a pending retry, not a resolved profile. The next bounded pass must retry it after the ten-minute cooldown. Do not move the cursor or clear the journal manually.
+
+At this checkpoint, the independently verified progress file records `last_run_id=45996795067`, `total_runs_observed=192`, and `status=running`. Controller #269 / [45998290854](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45998290854) is in its protected wait for the active sweep writer to finish. Sweep Run #18 / [45997091485](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45997091485) is active, so no post-Run-207 four-shard DB reconciliation is claimed yet. The next pass remains controller-dispatched; do not manually dispatch or overlap writers.
+
+All five full-cycle flags remain incomplete. The forward scan is still far from the current four-shard maximum, and the seven below-boundary retry/A-gate cases remain open for wraparound adjudication. This is a verified progress checkpoint, not full-pass completion.
