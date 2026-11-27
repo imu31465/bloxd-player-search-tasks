@@ -1634,3 +1634,52 @@ All five workers reached the configured 400-fetch cap. There were no HTTP fetch 
 The continuation controller #281 / [46024684664](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024684664) processed Run #215 and dispatched Run #216 / [46024779632](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024779632). Run #216 passed cutover and prepare; its prepare log again pins source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Its five workers are active, so no post-Run #215 database reconciliation is included yet. Wait until Run #216 and all other writer jobs finish before the next four-shard read-only reconciliation.
 
 All five full-cycle flags remain incomplete. The cursors have not completed the required pass beyond the current four-shard maximum, wrap below 242336, and return through the original boundary. Continue the controller-managed chain; do not manually dispatch.
+
+
+## Verified Enrichment Run #216 and four-shard reconciliation — 2026-11-27 UTC
+
+[Run #216 / 46024779632](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46024779632) completed successfully. Cutover, prepare, all five worker jobs, and notify-controller passed. Each worker's invocation and environment confirm source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755` and arguments `--limit 1000 --fetch-cap 400 --probe-workers 1 --sleep 0.7 --probe-retry-rounds 3 --probe-retry-wait 120`.
+
+| Worker | Recorded | Changed | Gone | Errors | Probe 429 | Skipped | Pending | Cursor | Duration |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 0 | 0 | 0 | 0 | 600 | 657460 → 659460 | 566s |
+| 1 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 651621 → 653626 | 436s |
+| 2 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 648087 → 650092 | 544s |
+| 3 | 400 | 400 | 0 | 1 | 0 | 0 | 600 | 651153 → 653138 | 563s |
+| 4 | 400 | 400 | 1 | 0 | 0 | 0 | 599 | 652139 → 654144 | 437s |
+| **Total** | **2,000** | **2,000** | **3** | **1** | **0** | **0** | **2,997** | — | — |
+
+All five workers reached the configured 400-fetch cap; these bounded stops are expected and all GitHub jobs succeeded. Worker 3 recorded one Cloudflare HTTP 502 on the next candidate. The ID remains pending at its cursor; the error journal and player/snapshot timestamps were checked and there is no later update or snapshot proving recovery. The controller progress state has `retry_cursor=653138`, `retry_count=1` for worker 3. Keep this retry open until a later worker run successfully refreshes the row and a newer player timestamp plus snapshot confirm recovery. No player ID is published here.
+
+Every worker successfully used the browser fallback for the live SP token: Chromium capture and mint validation passed. The initial static-builder anchor and missing-Playwright messages were recovered setup warnings, not token failures.
+
+### Four-shard read-only reconciliation after Run #216
+
+All four Neon shards were queried after Run #216 finished and while no enrichment/census/sweep writer was active. The five persisted cursor values in shard01 meta matched the five worker logs exactly: **659460 / 653626 / 650092 / 653138 / 654144**.
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 801,447 | 163,031 | 641,177 | 3,357,327 | 0 |
+| 02 | 800,995 | 163,014 | 640,749 | 3,357,343 | 0 |
+| 03 | 801,176 | 163,108 | 640,828 | 3,357,345 | 0 |
+| 04 | 801,197 | 163,047 | 640,899 | 3,357,311 | 0 |
+| **Total** | **3,204,815** | **652,200** | **2,563,653** | **3,357,345** | **0** |
+
+The inclusive forward scan (`Player.id >= worker cursor`, partitioned by `Player.id % 5`) now contains **2,555,452 rows**:
+
+| Worker | Forward rows remaining |
+|---:|---:|
+| 0 | 510,175 |
+| 1 | 511,156 |
+| 2 | 511,722 |
+| 3 | 511,040 |
+| 4 | 511,359 |
+| **Total** | **2,555,452** |
+
+Of these forward rows, 2,555,450 have empty cosmetics and two populated-cosmetics rows remain in worker 3's partition for the A-gate/name check. There are no orphan snapshots. Compared with the post-Run #214 baseline, player count is unchanged, snapshots increased by **4,000**, and empty-cosmetics count decreased by **3,636**, matching the cosmetics-change totals from Runs #215 and #216.
+
+The Run #214-to-Run #216 forward-count delta was verified with a single SQL comparison using both cursor sets. An earlier intermediate tally accidentally reused worker 0's Run #215 cursor instead of the Run #216 cursor; the published **2,555,452** total above is the corrected count using the persisted Run #216 cursors for every worker.
+
+Controller #282 / [46026330457](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46026330457) has committed the Run #216 progress state and is waiting for the next safe writer window. No writer was active at this reconciliation. The next pass must remain controller-dispatched; worker 3's HTTP 502 retry is still outstanding.
+
+All five full-cycle flags remain `wrapped=false` and `completed=false`. Every worker still needs to pass the current four-shard maximum, wrap below **242336**, and advance back through the boundary with zero pending IDs, errors, probe429s, and unresolved retry/A-gate cases. This is a verified progress checkpoint, not completion.
