@@ -1774,65 +1774,87 @@ All five worker cycles remain `wrapped=false` and `completed=false`. Each cursor
 
 ## Full-profile refresh and Discord notification fixes — 2026-11-28
 
-The normal enrichment path now refreshes full social profiles independently
-of name changes. Source PR
-[#11](https://github.com/imu31465/bloxd-player-search/pull/11) merged to
-`runner` at `a2d8695bc6e1d1096fbfdb23b60ba5348a860090`. Eligibility is based
-only on the shared `bloxd_fetch_{id}` attempt journal: a prior success is
-skipped for 24 hours; otherwise the profile is eligible regardless of its name
-or cosmetics. Recent `err`/`gone` results have a 10-minute cooldown, and
-force IDs bypass cooldown. The normal enrichment path no longer performs the
-redirect/HEAD name probe.
+The normal enrichment path is journal-based full-profile refresh, not a
+name/redirect A-gate. Source PR [#11](https://github.com/imu31465/bloxd-player-search/pull/11)
+merged to runner at `a2d8695bc6e1d1096fbfdb23b60ba5348a860090`. Fetch when no
+successful `bloxd_fetch_{id}` journal entry exists or the last success is at
+least 24 hours old; recent `err`/`gone` outcomes cool down for 10 minutes.
+Player name and cosmetics do not decide eligibility, and normal refresh does
+not use HEAD redirect probes.
 
-The five disjoint workers retain `--limit 1000`, `--fetch-cap 400` per
-worker, `--sleep 0.7`, independent `id % 5) cursors, and pending-ID recovery.
-The task runner invokes the updated CLI without the removed probe arguments.
-The daily enrich schedule plus continuation controller drive bounded refresh
-batches through the shared writer lock. The public `sweep.yml` is manual-only
-recovery, not a second automatic writer schedule. Census retains its :47 UTC
-reservation.
+The five disjoint workers retain `--limit 1000`, `--fetch-cap 400` each,
+`--sleep 0.7`, independent modulo-5 cursors, and pending-ID recovery. The
+daily enrich schedule and continuation controller dispatch serialized bounded
+batches through the shared writer lock. Public `sweep.yml` is manual-only
+recovery; census retains its :47 UTC reservation.
 
-The Discord issue was a separate reporting gap. The old enrich notification
-showed rename examples rather than full per-player descriptions for every
-tracked field. The old social sweep suppressed most non-rank profile changes.
-Source PR [#12](https://github.com/imu31465/bloxd-player-search/pull/12) merged
-to `runner` at `3e0aed333a9711f2abb05643684de8d2f0605528`. Both notification
-paths now report safe per-player changes for name, name colour, cosmetics,
-ranks, social links, released games, and relevant profile statistics. Social
-URLs and raw cosmetic values are omitted. Stats-only and `super`-only noise
-remains filtered. The webhook helper logs an explicit delivery HTTP status or
-an explicit missing-configuration/failure message.
+The Discord-only gap was that enrich previously showed rename examples while
+social sweep suppressed most non-rank field changes. Source PR
+[#12](https://github.com/imu31465/bloxd-player-search/pull/12) merged to runner
+at `3e0aed333a9711f2abb05643684de8d2f0605528`. Both paths now prepare safe
+per-player summaries for name, name colour, cosmetics, ranks, social links,
+released games, and relevant profile statistics. Social URLs and raw cosmetic
+values are omitted. The shared filter suppresses stats-only changes and
+rank-only changes involving only the paid `super` subscription. Source PR
+[#13](https://github.com/imu31465/bloxd-player-search/pull/13) merged at
+`f5883959e91f8b7a7560a52085eb5b11d8d2214e`; it applies that same filter to
+both paths, logs prepared report player-count and attachment byte-count, and
+adds regression tests. The webhook helper logs delivered HTTP status, missing
+configuration, or request failure.
 
-### Evidence and live-delivery verification
+### Validation and live notification evidence
 
-The older Enrich Run #234 /
-[46073101616](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46073101616)
-ran against the pre-PR-#11 runner SHA
-`b6af77e8e91c4cce515eb9ec05bf31df8a094755`. It still logged 2,000 successful
-fetches, 0 errors and 0 probe 429s, with field-change totals of **1,812
-name-colour**, **1,757 cosmetics**, **39 name**, **9 released-games**, and
-**1 rank** changes (categories can overlap per player). This confirms that
-other fields were already being updated; the missing part was notification
-visibility, and the older fetch policy still gated populated rows by name.
+Candidate PR #12 validation [Run #104](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46074878509)
+passed all eight jobs against the exact candidate source head, including
+44 unit/SQLite tests and the PostgreSQL shard-writer integration. Post-merge
+validation [Run #113](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46076359731)
+checked runner SHA `63f0ee1374d24b75d971505101768006e84a90e7` and passed all
+eight jobs, including 49 unit/SQLite tests and PostgreSQL writer integration.
+Candidate PR #13 validation [Run #114](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46084304350)
+passed against exact candidate SHA `3a789e003e9606ff1084bead39fe85e827feb2e3`,
+including 53 unit/SQLite tests and PostgreSQL writer integration.
+Post-merge validation [Run #115](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46084409035)
+then cloned exact runner SHA `f5883959e91f8b7a7560a52085eb5b11d8d2214e`;
+all eight jobs passed, including 53 unit/SQLite tests, four-shard PostgreSQL
+writer tests, Altare migration tests, workflow validation, secret/Neon checks,
+token validation, and production gateway health/login.
 
-Candidate validation [Run #104](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46074878509)
-passed all 8 jobs against candidate head
-`b2824f25bea28881b623b418235c507baeed383b`, including 44 unit/SQLite tests
-and PostgreSQL writer integration. Post-merge validation
-[Run #107](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46075142930)
-then checked the exact current `runner` SHA
-`3e0aed333a9711f2abb05643684de8d2f0605528`: all 9 jobs passed, including
-**49 unit tests**, the four-shard PostgreSQL writer integration, Altare
-migration/PG tests, workflow validation, Neon read/role checks, token
-validation, and production gateway health/login.
+Enrich Run #239 / [46082477093](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46082477093)
+ran on runner SHA `63f0ee1374d24b75d971505101768006e84a90e7` (PR #12 present,
+before PR #13). All five workers reached the intended 400-fetch cap:
 
-The next live enrich run and any manual recovery sweep must still be inspected
-for per-player profile-change output and a successful webhook HTTP status.
-Do not claim live Discord delivery is confirmed until the Actions log shows
-a 2xx response. Full initial refresh acceptance remains separate: all worker
-cursor cycles and final four-shard reconciliation must pass before marking the
-dataset complete.
+| Worker | Fetched / changed | Colour | Cosmetics | Name | Games | Snapshots | Gone / errors | Pending | Cursor | Time |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 / 400 | 400 | 362 | 10 | 5 | 400 | 0 / 0 | 600 | 703505 → 705505 | 404s |
+| 1 | 400 / 400 | 400 | 349 | 3 | 2 | 400 | 0 / 0 | 600 | 697546 → 699546 | 423s |
+| 2 | 400 / 400 | 400 | 346 | 8 | 2 | 400 | 0 / 0 | 600 | 694152 → 696152 | 557s |
+| 3 | 400 / 400 | 400 | 346 | 2 | 0 | 400 | 0 / 0 | 600 | 697188 → 699188 | 444s |
+| 4 | 400 / 400 | 400 | 357 | 7 | 3 | 400 | 0 / 0 | 600 | 698219 → 700219 | 441s |
+| **Total** | **2,000 / 2,000** | **2,000** | **1,760** | **30** | **12** | **2,000** | **0 / 0** | **3,000** | — | — |
 
+Categories may overlap within a player. All five workers logged **discord notify
+delivered (HTTP 200)**. Each fetched 400 profiles and produced non-rank field
+changes (especially name colour and cosmetics), so the new PR #12 change
+report path had data to attach. PR #13 adds an explicit report-row/attachment
+size log for subsequent runs so the payload itself is observable in Actions.
+
+### Four-shard read-only reconciliation after Run #239
+
+No profile writer was active during these reads. Worker cursor metadata on
+shard01 exactly matched the five run logs.
+
+| Shard | Players | Snapshots | Empty cosmetics | Non-empty cosmetics | Max player ID | Orphan snapshots |
+|---:|---:|---:|---:|---:|---:|---:|
+| 01 | 809,069 | 174,689 | 638,379 | 170,690 | 3,395,343 | 0 |
+| 02 | 808,533 | 174,652 | 637,949 | 170,584 | 3,395,345 | 0 |
+| 03 | 808,702 | 174,758 | 638,091 | 170,611 | 3,395,311 | 0 |
+| 04 | 808,831 | 174,668 | 638,273 | 170,558 | 3,395,327 | 0 |
+| **Total** | **3,235,135** | **698,767** | **2,552,692** | **682,443** | **3,395,345** | **0** |
+
+Persisted worker cursors: **705505 / 699546 / 696152 / 699188 / 700219**.
+Every cursor remains below the current maximum ID and above the initial
+boundary 242336; no worker has completed its full cycle. The dataset refresh
+is therefore still in progress and must not be marked completed.
 
 **Supersession notice:** Any earlier paragraphs in this run history that describe
 A-gate/name-redirect filtering, populated-cosmetics skip eligibility, HEAD
