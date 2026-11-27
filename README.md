@@ -1867,3 +1867,59 @@ cleared through actual fetch plus later row/snapshot evidence; do not use
 redirect/name equality to waive a profile. `probe429` counts belong only to
 the old implementation. New acceptance checks are per-run fetch errors,
 pending candidates, successful snapshot changes, and exact cursor reconciliation.
+
+## Verified Run batch #220–#239, post-Run #239 reconciliation, and notification PR #13 — 2026-11-28 UTC
+
+Every workflow run #220–#239 completed successfully: each passed cutover, prepare, all five workers, and notify-controller. All five worker logs were independently inspected per run.
+
+| Run | Run ID | Fetched / changed | Gone | Fetch errors | Legacy A-gate skips |
+|---:|---:|---:|---:|---:|---:|
+| 220 | [46037254278](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46037254278) | 2,000 / 2,000 | 0 | 0 | 0 |
+| 221 | [46040777447](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46040777447) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 222 | [46042305367](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46042305367) | 2,000 / 2,000 | 2 | 0 | 0 |
+| 223 | [46045199635](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46045199635) | 2,000 / 2,000 | 2 | 1 | 0 |
+| 224 | [46048540678](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46048540678) | 1,972 / 1,972 | 5 | 0 | 263 |
+| 225 | [46049949912](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46049949912) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 226 | [46052694096](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46052694096) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 227 | [46055813680](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46055813680) | 2,000 / 2,000 | 0 | 0 | 0 |
+| 228 | [46057182565](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46057182565) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 229 | [46059713660](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46059713660) | 2,000 / 2,000 | 2 | 0 | 0 |
+| 230 | [46062693205](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46062693205) | 2,000 / 2,000 | 2 | 0 | 0 |
+| 231 | [46066610927](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46066610927) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 232 | [46069474495](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46069474495) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 233 | [46070747031](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46070747031) | 2,000 / 2,000 | 2 | 0 | 0 |
+| 234 | [46073101616](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46073101616) | 2,000 / 2,000 | 2 | 0 | 0 |
+| 235 | [46077097438](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46077097438) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 236 | [46079202986](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46079202986) | 2,000 / 2,000 | 0 | 0 | 0 |
+| 237 | [46080313978](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46080313978) | 2,000 / 2,000 | 2 | 0 | 0 |
+| 238 | [46081380606](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46081380606) | 2,000 / 2,000 | 1 | 0 | 0 |
+| 239 | [46082477093](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46082477093) | 2,000 / 2,000 | 0 | 0 | 0 |
+| **Total** | **20 successful runs** | **39,972 / 39,972** | **27** | **1** | **263** |
+
+Runs #220–234 used the previous source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`. Run #235–239 used `63f0ee1374d24b75d971505101768006e84a90e7`, which includes the full-profile eligibility change (PR #11) and field-level Discord reports (PR #12). Run #224 worker 1 was below the 400-fetch cap because the old implementation skipped 263 candidates; it fetched and changed 372 profiles. Run #223 worker 1 had one Cloudflare HTTP 502 at its retained cursor. Run #224 resumed that exact cursor, and a four-shard lookup confirmed a later player update and latest snapshot at **2026-11-27T18:20:26.521Z**, proving recovery after the 17:56:02Z failure. There is no remaining above-boundary fetch error.
+
+Across Runs #235–239, all 25 worker log entries recorded **discord notify delivered (HTTP 200)**. Each worker produced non-rank profile-field updates; Run #239 alone reported 2,000 name-colour, 1,760 cosmetics, 30 name, and 12 released-games changes (categories can overlap). The notification status is now observable, and live delivery for these runs is confirmed.
+
+### Current source runner and notification noise filter
+
+Source PR [#13](https://github.com/imu31465/bloxd-player-search/pull/13) merged to `runner` at **`f5883959e91f8b7a7560a52085eb5b11d8d2214e`**. It applies one shared policy to enrich and social sweep: suppress statistics-only updates and rank-only churn involving only `super`; preserve non-super rank changes and all meaningful non-rank profile changes. It also logs the prepared report player count and attachment byte count before webhook delivery. This is notification-only; fetch eligibility, pacing, concurrency, database writes, cursors, and snapshots are unchanged.
+
+Exact candidate validation Run #114 passed all eight jobs. Post-merge validation [Run #115](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46084409035) passed all eight jobs, including 53 unit/SQLite tests, PostgreSQL writer integration, Altare migration tests, workflow YAML, read-only Neon/secrets, token validation, and production gateway checks. The merged-runner test log includes regression tests for statistics-only suppression, super-only rank suppression, non-super rank notification, and non-rank changes alongside super churn. Run #239 predates PR #13; the next production run must prove it pins this new SHA and emits a nonzero/grounded report count and attachment size when profile changes exist.
+
+### Four-shard read-only reconciliation after Run #239
+
+All enrich/census/sweep writer workflows were inactive during these reads. The shard01 persisted cursor values exactly match all five Run #239 worker logs: **705505 / 699546 / 696152 / 699188 / 700219**.
+
+| Shard | Players | Snapshots | Empty cosmetics | Non-empty cosmetics | Max player ID | Orphan snapshots |
+|---:|---:|---:|---:|---:|---:|---:|
+| 01 | 809,069 | 174,689 | 638,379 | 170,690 | 3,395,343 | 0 |
+| 02 | 808,533 | 174,652 | 637,949 | 170,584 | 3,395,345 | 0 |
+| 03 | 808,702 | 174,758 | 638,091 | 170,611 | 3,395,311 | 0 |
+| 04 | 808,831 | 174,668 | 638,273 | 170,558 | 3,395,327 | 0 |
+| **Total** | **3,235,135** | **698,767** | **2,552,692** | **682,443** | **3,395,345** | **0** |
+
+Using the Run #239 cursors, the inclusive forward scan (`Player.id >= worker cursor`, partitioned by `Player.id % 5`) contains **2,539,764 rows**, split **507,030 / 508,038 / 508,585 / 507,908 / 508,203**. All forward rows currently have empty cosmetics; no populated-cosmetics rows remain ahead of the five cursors. There are zero orphan snapshots.
+
+A fresh comparison of the full error journal found **174** current `bloxd_fetch` `:err` markers. **167** have both a later player `updated_at` and later snapshot than the recorded error timestamp. **Seven remain unresolved**, all below the original boundary **242336**; no above-boundary errors remain unresolved, and all markers correspond to an existing player row. Keep individual IDs private. These seven old low-boundary cases must be resolved through the new journal-only fetch policy after wraparound; their prior A-gate classifications are historical and cannot be used to skip them.
+
+All five worker cycles remain `wrapped=false` and `completed=false`. Their cursors have not passed the current four-shard maximum **3,395,345**, wrapped below **242336**, and advanced back through the boundary. This is a verified checkpoint, not full-pass completion. Controller #311 / [46083448179](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46083448179) remains the owner of the next continuation; no manual dispatch or overlapping writer is permitted.
