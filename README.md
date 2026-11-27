@@ -1532,3 +1532,43 @@ The inclusive forward-scan remainder (`Player.id >= cursor`) is **2,571,094 rows
 At this checkpoint, progress remained `status=running`, `last_run_id=45996795067`, `total_runs_observed=192` until the continuation controller's next reconciliation commit. Controller #270 / [46002108858](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46002108858) remains in its protected safe-writer wait. Sweep Run #18 / [45997091485](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45997091485) completed successfully across all five shards; no sweep/enrich/census writer overlap was observed. Do not manually dispatch another writer.
 
 All five full-cycle flags remain incomplete. No cursor has passed the current four-shard maximum **3,357,345**, wrapped below **242336**, and advanced back through the boundary. The seven low-boundary error/A-gate cases remain to be adjudicated during the full wraparound. This is a verified progress checkpoint, not full-pass completion.
+
+
+## Verified Enrichment Runs #209–213 — 2026-11-27 UTC
+
+Runs #209–213 were independently verified against their cutover gates, prepare logs, all five exact worker logs, and notify-controller jobs. All five runs completed successfully; all 25 worker jobs and all five notify-controller jobs passed. Every prepare log pinned private source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Run | GitHub Actions | Recorded / changed | Gone | Fetch errors | Skipped | Pending | Cursor ends (workers 0 / 1 / 2 / 3 / 4) |
+|---:|---|---:|---:|---:|---:|---:|---|
+| 209 | [46005328568](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46005328568) | 2,000 / 2,000 | 2 | 0 | 0 | 998 | 645430 / 637781 / 633162 / 636208 / 637874 |
+| 210 | [46007006729](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46007006729) | 2,000 / 2,000 | 1 | 1 | 0 | 999 | 647435 / 642751 / 635162 / 638208 / 638179 |
+| 211 | [46010227061](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46010227061) | 1,888 / 1,861 | 2 | 0 | 312 | 798 | 649440 / 644751 / 637167 / 643138 / 644125 |
+| 212 | [46013908520](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46013908520) | 2,000 / 2,000 | 0 | 1 | 0 | 1,000 | 651440 / 646621 / 641392 / 645138 / 646129 |
+| 213 | [46015719339](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46015719339) | 2,000 / 1,996 | 1 | 0 | 25 | 975 | 653445 / 646621 / 644087 / 647138 / 648134 |
+| **Total** | **5 successful runs** | **9,888 / 9,857** | **6** | **2** | **337** | **4,770** | — |
+
+The two HTTP 502 failures in this range were not left unresolved. Run #210 worker 4's failed ID received a later player update and snapshot at 13:49:40Z after the 13:28:12Z failure. Run #212 worker 1's failed ID received a later player update and snapshot at 14:48:48Z after the 14:23:13Z failure, during the subsequent retry pass (Run #214). The previous above-boundary 502s from Runs #206 and #207 were also independently recovered: both have later player-update and snapshot evidence. No player IDs are published.
+
+### Full-shard checkpoint after Run #213
+
+The following read-only counts were captured before Run #214 began writing:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 801,447 | 161,590 | 642,507 | 3,357,327 | 0 |
+| 02 | 800,995 | 161,570 | 642,053 | 3,357,343 | 0 |
+| 03 | 801,176 | 161,660 | 642,164 | 3,357,345 | 0 |
+| 04 | 801,197 | 161,604 | 642,225 | 3,357,311 | 0 |
+| **Total** | **3,204,815** | **646,424** | **2,568,949** | — | **0** |
+
+The persisted shard-01 cursors matched the Run #213 worker log ends: **653445 / 646621 / 644087 / 647138 / 648134**. An inclusive cursor query (`Player.id >= cursor`) found **2,561,655 forward-scan rows remaining**, split by worker as **511,376 / 512,557 / 512,923 / 512,239 / 512,560**. Of these, **2,560,747** had empty cosmetics and **908** had populated cosmetics (split **123 / 444 / 100 / 129 / 112**); populated rows remain subject to the redirect/name A-gate.
+
+A cross-shard comparison of the control-shard error journal at this checkpoint found 172 current `:err` markers. **165** already had both a later player `updated_at` and a later profile snapshot. The remaining **seven** are all below the original boundary **242336**: four empty-cosmetics candidates, two populated-cosmetics redirect/name mismatches requiring a fetch, and one populated exact-name match eligible for the A-gate skip. They remain open until the wraparound segment is completed.
+
+### Candidate-window adjustment
+
+Two clean workers showed that a 600-row input window can underfill the 400-fetch cap after A-gate skips: Run #208 worker 3 recorded 224 fetches with 376 skips, and Run #211 worker 4 recorded 288 fetches with 312 skips. The workflow was therefore changed from `--limit 600` to the previously used `--limit 1000` in commit [7bead144](https://github.com/imu31465/bloxd-player-search-tasks/commit/7bead144d4e7f36de22a2ca93e8d9ff631527d62). This only widens the candidate-selection window; **`--fetch-cap 400`, `--sleep 0.7`, and `--probe-workers 1` remain unchanged**, so the per-worker social-API burst and pacing are not increased. The exact-head validation workflow [#94 / 46019321022](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46019321022) passed all seven jobs, including workflow YAML, source main/runner tests, Altare tests, read-only Neon checks, session-token validation, and production gateway/login checks.
+
+Run #214 / [46019020845](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46019020845) started at 14:47:07Z, before the 1,000-row workflow change, so it still uses the prior 600-row selection window. Its worker 1 completed the pending retry and recorded 220 successful profiles, changed 176, skipped 380, with zero errors; its cursor advanced **646621 → 649617**. The other four workers were still in progress at the time of this checkpoint. The next controller-dispatched run will use the validated 1,000-row window. Do not manually dispatch or overlap writers.
+
+All five full-cycle flags remain incomplete. No cursor has passed the current four-shard maximum **3,357,345**, wrapped below **242336**, and advanced back through the original boundary. The seven low-boundary cases remain for wraparound adjudication. This is a verified progress checkpoint, not full-pass completion.
