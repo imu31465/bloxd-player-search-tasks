@@ -1441,3 +1441,35 @@ Each worker in both runs reached its expected per-worker fetch cap of 400; all r
 At the checkpoint after Run #205, progress state recorded `last_run_id=45990315805`, `total_runs_observed=190`, and `status=running`. Run #206 / [45993297959](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45993297959) had passed its cutover gate and prepare, pinning the same source SHA, and its five worker jobs were active. Controller #266 / [45992765078](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45992765078) was in the protected writer-window wait. Do not manually dispatch or overlap another writer. No post-Run-205 four-shard reconciliation is claimed while Run #206 is writing.
 
 All five full-cycle flags remain incomplete. The forward scan has not reached the current maximum ID, wrapped below boundary 242336, and advanced back through it. The seven low-boundary retry/A-gate cases also remain open for wraparound adjudication. This is a verified progress checkpoint, not full-pass completion.
+
+
+## Verified Enrichment Run #206 — 2026-11-27 UTC
+
+[Run #206 / 45993297959](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45993297959) completed successfully. Its cutover gate, prepare job, all five workers, and notify-controller succeeded. Prepare pinned source runner SHA `b6af77e8e91c4cce515eb9ec05bf31df8a094755`.
+
+| Worker | Recorded | Changed | Gone | Errors | Probe 429 | Pending | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 | 400 | 0 | 0 | 0 | 200 | 634510 → 636510 |
+| 1 | 400 | 400 | 0 | 1 | 0 | 200 | 629776 → 631096 |
+| 2 | 400 | 400 | 2 | 0 | 0 | 198 | 625132 → 627142 |
+| 3 | 400 | 400 | 0 | 0 | 0 | 200 | 629178 → 631178 |
+| 4 | 400 | 400 | 0 | 0 | 0 | 200 | 629864 → 631869 |
+| **Total** | **2,000** | **2,000** | **2** | **1** | **0** | **998** | — |
+
+Worker 1 recorded one HTTP 502 on player ID 631096. The error journal was verified as `bloxd_fetch_631096 = <timestamp>:err`; its player row remains on shard04 with an old 2026-10-26 profile timestamp and no snapshot, so there is no evidence of a later successful refresh. The worker correctly retained cursor 631096, and the persisted shard-01 cursor values match every Run #206 worker log: **636510 / 631096 / 627142 / 631178 / 631869**. This ID must be retried after the ten-minute failure cooldown; do not clear the journal or move the cursor manually. It is still pending, not resolved.
+
+Four-shard read-only reconciliation after Run #206:
+
+| Shard | Players | Snapshots | Empty cosmetics | Max player ID | Orphan snapshots |
+|---|---:|---:|---:|---:|---:|
+| 01 | 801,447 | 158,036 | 645,673 | 3,357,327 | 0 |
+| 02 | 800,995 | 158,023 | 645,255 | 3,357,343 | 0 |
+| 03 | 801,176 | 158,092 | 645,371 | 3,357,345 | 0 |
+| 04 | 801,197 | 158,077 | 645,398 | 3,357,311 | 0 |
+| **Total** | **3,204,815** | **632,228** | **2,581,697** | — | **0** |
+
+The inclusive forward-scan workload after Run #206 is **2,575,039 rows**: **2,574,903 empty-cosmetics** and **136 populated-cosmetics**, split by worker as **514,179 / 515,067 / 515,727 / 514,845 / 515,221**. The populated-cosmetics rows are all in worker 1's window and must continue through the A-gate; they are not blindly fetched.
+
+Controller #266 / [45992765078](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/45992765078) has recorded Run #206 in `ENRICH_PROGRESS.json` (`last_run_id=45993297959`, `total_runs_observed=191`) and is still in its protected safe-writer-window wait. The next bounded pass remains controller-dispatched; do not manually dispatch or overlap census/sweep/enrich.
+
+All five full-cycle flags remain incomplete. No cursor has passed the current max ID **3,357,345**, wrapped below boundary **242336**, and advanced back through it. The seven low-boundary cases remain open for the later wraparound phase. This is a verified progress checkpoint, not full-pass completion.
