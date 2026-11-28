@@ -2094,7 +2094,7 @@ Both runs completed successfully with cutover, prepare, all five workers, and no
 
 Across these runs the ten attachments contained 4,000 player rows and 685,276 bytes. Name-colour changes: 4,000; cosmetics: 3,836; names: 35; released games: 25; ranks: 1 (one rank row in worker 2 of Run 272; field categories can overlap). All runs stopped at the expected fetch cap with 600 pending per worker. No probe stage or probe429 activity appeared.
 
-Run #273 / [46124994080](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124994080) was dispatched by controller #347 / [46124923400](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124923400). Its prepare job passed and pinned the same runner SHA; the five worker jobs had entered the live Drip refresh step after successful SP-token resolution. Its worker logs and completion remain pending at this checkpoint; no Neon read is allowed while it is active.
+Historical first observation: Run #273 / [46124994080](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124994080) had just been dispatched by controller #347 / [46124923400](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124923400); prepare had passed and workers were entering refresh. Its completed worker logs and exact results are recorded in the later 'Verified Enrichment Run #273' section below.
 
 ## Final acceptance guard in continuation controller
 
