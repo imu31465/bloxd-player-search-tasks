@@ -2198,3 +2198,32 @@ The rank count is a single non-super rank change; field categories may overlap. 
 Controller #352 / [46128572498](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46128572498) processed Run275, committed progress (`last_run_id=46127792729`, `total_runs_observed=260`), passed the 15-minute post-census arrival guard and dispatched Run #276 / [46128617736](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46128617736) at 09:02:59Z. Run276's cutover and prepare passed; prepare pinned the same exact runner SHA. Five worker jobs entered Drip refresh after token resolution. Run276 is the only active writer; do not query Neon or manually dispatch another writer until it and its controller complete.
 
 All five worker cycles remain `wrapped=false` / `completed=false`. The last independent four-shard DB checkpoint remains post-Run274. Run275's worker results are recorded here, but no new database reconciliation was performed because Run276 was already active.
+
+
+
+## Runs #276–#278 and profile-fetch journal correction — 2026-11-28
+
+Runs #276 / [46128617736](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46128617736), #277 / [46129396193](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46129396193), and #278 / [46130308404](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46130308404) all completed successfully. Each passed cutover, prepare, five workers, and notify-controller. The prepare and worker jobs used source runner SHA `e615eb86c7e83935dc86dba30018141cbc819889` and arguments `--limit 1000 --sleep 0.7 --fetch-cap 400`; no legacy probe flags or probe429 stage appeared.
+
+Across these three runs: **6,000 successful profile fetches**, **6,000 tracked profile changes/snapshots**, **3 gone**, **0 fetch errors**, **0 skips**, and **8,997 pending** for the next bounded passes. Field changes (categories overlap): colour **6,000**, cosmetics **5,778**, names **91**, released games **58**. All 15 per-player report attachments were prepared, totalling **6,000 rows / 1,051,594 bytes**, and all 15 webhook deliveries returned **HTTP 200**.
+
+Worker cursor ends (workers 0–4):
+- Run #276: **776785 / 771821 / 766047 / 771328 / 767734**
+- Run #277: **778790 / 773826 / 768047 / 773328 / 769739**
+- Run #278: **780790 / 775826 / 770047 / 775333 / 771744**
+
+Run #278's exact worker results are in its Actions logs. Controller #354 / [46130272940](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46130272940) is at the protected census/sweep writer-window guard, and controller #356 / [46131143231](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46131143231) is pending behind it. ENRICH_PROGRESS remains controller-owned at Run #277 / `last_run_id=46129396193`, `total_runs_observed=262`; its latest worker cursors match Run #277 above. Do not edit that file or query Neon while either controller remains active. The most recent all-four-shard database reconciliation remains the post-Run #274 checkpoint; no reconciliation was performed after #274 because a writer/controller was active. All five cycles remain `wrapped=false` and `completed=false`.
+
+### Newly confirmed source correctness defect — successful journal outcomes
+
+Reviewing the exact live source runner uncovered that `tools/enrich_profiles.py` writes `:err` and `:gone` attempt-journal outcomes but does not write `:ok` after successful full-profile fetches. Eligibility is journal-only, so the promised 24-hour success cooldown is not actually established for successful enrich fetches. The first cursor wrap could therefore re-fetch successful profiles. The current cursors have not reached the wrap boundary yet; this must be fixed before the first wrap.
+
+PR #16, [Persist successful full-profile fetch journal outcomes](https://github.com/imu31465/bloxd-player-search/pull/16), is based on the current runner base `5ecd484fd0ae1524992dead43fba99b629165c12` and proposes:
+- queue `:ok`, `:err`, and `:gone` attempt results and persist them in one control-shard transaction before cursor advancement;
+- fail closed if journal or cursor persistence fails;
+- keep malformed profile responses pending as retryable errors;
+- test the control-shard journal transaction and four-shard PostgreSQL behavior.
+
+The latest PR head `a711f6fced9d1e7b3fa34d9181c57d9214dae3f3` passed exact-head candidate validation Run #3 / [46131853522](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46131853522): compileall, **59 unit/SQLite tests**, and the four-disposable-PostgreSQL-shard writer integration (including bulk journal writes confined to shard01) all passed. The repository-native `Neon sharding tests` PR check still fails without job steps or a downloadable log (BlobNotFound); a targeted retry was issued. The PR remains open/unmerged until the native check becomes green; no check bypass is authorized.
+
+No production Neon rows, player snapshots, player IDs, or secrets were changed or published by this fix or its validation.
