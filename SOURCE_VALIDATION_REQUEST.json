@@ -1,8 +1,8 @@
 {
-  "source_sha": "e7a41bcb9d8bc1d3a1f851614522b57a2ddf2c0d",
+  "source_sha": "868911a48d3e8ed3d0236c8f95b472d01d82e021",
   "pull_request": 16,
   "purpose": "Validate successful profile-fetch journal persistence and control-shard transaction behavior",
-  "created_at": "2026-11-28T09:40:00Z",
-  "retry": 4,
-  "note": "Validate latest PR16 head including fail-closed manual sweep journal persistence"
+  "created_at": "2026-11-28T11:22:00Z",
+  "retry": 5,
+  "note": "Validate PR16 exact latest head after switching native sharding CI to ubuntu-24.04; verify successful fetch journal and control-shard transaction"
 }
