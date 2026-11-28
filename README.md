@@ -2003,3 +2003,40 @@ After Run #247, source `runner` received documentation-only updates to
 current cutover, workflow, notification, and active four-shard documentation;
 no application, fetch, rate, cursor, snapshot, or notification code changed.
 The next prepare job should pin this documentation-only head.
+
+## Verified Enrichment Run #248 and four-shard reconciliation — 2026-11-28 UTC
+
+[Run #248 / 46095308447](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46095308447) completed successfully. Cutover, prepare, all five workers, and notify-controller passed. Prepare and every worker pinned the exact current source runner SHA **`e615eb86c7e83935dc86dba30018141cbc819889`**. The source branch changes since the prior runtime SHA `e8cb550ec77dcb9b41f99dee20646e85f12b37fa` are documentation-only in `README_SYSTEMS.md`; the diff contains no runtime file changes. The task workflow used `--limit 1000 --sleep 0.7 --fetch-cap 400`, with no probe arguments.
+
+| Worker | Fetched / changed / snapshots | Gone | Errors | Skipped | Pending | Colour | Cosmetics | Name | Games | Report rows | Attachment bytes | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 360 | 15 | 4 | 400 | 70,355 | 721515 → 723515 |
+| 1 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 345 | 5 | 2 | 400 | 65,274 | 715556 → 717556 |
+| 2 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 353 | 6 | 8 | 400 | 69,277 | 712162 → 714162 |
+| 3 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 348 | 6 | 2 | 400 | 64,931 | 715203 → 717203 |
+| 4 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 362 | 7 | 9 | 400 | 70,363 | 712599 → 714604 |
+| **Total** | **2,000 / 2,000 / 2,000** | **0** | **0** | **0** | **3,000** | **2,000** | **1,768** | **39** | **25** | **2,000** | **340,200** | — |
+
+Field categories can overlap within a player. All five workers logged prepared per-player change reports with nonzero row and attachment counts, then **discord notify delivered (HTTP 200)**. This verifies the post-PR #13 notification filter and report-size instrumentation live on the exact current runner. All 2,000 successful fetches changed tracked profile fields.
+
+### Four-shard read-only reconciliation after Run #248
+
+The Run #248 writer had completed successfully. At the start of these reads there were no active or queued enrich/census/sweep writers; continuation controller #320 was waiting in its protected writer-window guard and had not dispatched another writer. All four shards were queried read-only.
+
+| Shard | Players | Snapshots | Empty cosmetics | Non-empty cosmetics | Max player ID | Orphan snapshots |
+|---:|---:|---:|---:|---:|---:|---:|
+| 01 | 809,069 | 179,006 | 634,536 | 174,533 | 3,395,343 | 0 |
+| 02 | 808,533 | 178,971 | 634,138 | 174,395 | 3,395,345 | 0 |
+| 03 | 808,702 | 179,079 | 634,215 | 174,487 | 3,395,311 | 0 |
+| 04 | 808,831 | 178,985 | 634,443 | 174,388 | 3,395,327 | 0 |
+| **Total** | **3,235,135** | **716,041** | **2,537,332** | **697,803** | **3,395,345** | **0** |
+
+Shard01's persisted cursor metadata exactly matches the five Run #248 worker logs: **723515 / 717556 / 714162 / 717203 / 714604**.
+
+The inclusive forward scan (`Player.id >= worker cursor`, partitioned by `Player.id % 5`) contains **2,522,483 rows**, split by worker **503,430 / 504,437 / 504,983 / 504,306 / 505,327**. Every forward row currently has empty cosmetics; no populated-cosmetics row remains ahead of a cursor. There are zero orphan snapshots.
+
+The current cross-shard `bloxd_fetch` error journal has **175** `:err` markers. **168** have both a later player `updated_at` and later profile snapshot than the recorded error time. **Seven remain unresolved**, all below the original boundary **242336**; there are zero unresolved above-boundary markers and zero missing player rows. Individual IDs are private. The additional Run #244 HTTP 502 at cursor 708594 is now confirmed recovered: the corresponding shard04 player update and latest snapshot are both **2026-11-28T01:14:00.441506Z**, later than the **2026-11-28T00:54:55.321691Z** error. The seven old low-boundary cases remain for actual journal-only retry after wraparound; historical A-gate classifications cannot exempt them.
+
+Controller #320 / [46096067319](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46096067319) has committed Run #248 progress (`last_run_id=46095308447`, `total_runs_observed=233`) and is waiting at the protected writer-window guard. No next writer was active or queued during the reads. Do not manually dispatch or overlap writers.
+
+All five worker cycles remain `wrapped=false` and `completed=false`. The cursors remain below the current four-shard maximum **3,395,345** and have not wrapped below **242336**. This checkpoint is not full-pass completion.
