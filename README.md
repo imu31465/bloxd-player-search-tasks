@@ -2081,3 +2081,25 @@ Controller #345 / [46121996013](https://github.com/imu31465/bloxd-player-search-
 The latest full four-shard database reconciliation remains the verified post-Run #248 checkpoint documented above. Do not treat cursor movement as database reconciliation. After controller #345 dispatches and the next run plus progress handoff finish, wait for a no-writer/no-controller window, then re-read all four shards, compare persisted cursors, count current forward rows, and verify the seven HTTP502 recoveries against both player and snapshot timestamps. Refresh the progress note only from the latest JSON blob SHA and preserve all controller-owned cursor, cycle, and last-run fields.
 
 The first full refresh is not complete: no worker has yet crossed the current database maximum, wrapped below 242336, and advanced back through that boundary. Keep `ENRICH_PROGRESS.json` status as running until all five strict cycle conditions and the final all-shard acceptance checks pass.
+
+
+## Verified Enrichment Runs #271–#272 — 2026-11-28 UTC
+
+Both runs completed successfully with cutover, prepare, all five workers, and notify-controller. All ten worker logs and both prepare logs pinned the exact runner SHA `e615eb86c7e83935dc86dba30018141cbc819889`. Every worker used `--limit 1000 --sleep 0.7 --fetch-cap 400`, generated a per-player report, and delivered its webhook with HTTP 200.
+
+| Run | Run ID | Worker fetched / changed / snapshots | Gone | Errors | Skips | Cursor ends (workers 0–4) |
+|---:|---:|---:|---:|---:|---:|---|
+| 271 | [46123210794](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46123210794) | 2,000 / 2,000 / 2,000 | 0 | 0 | 0 | 766780 / 761806 / 756002 / 761283 / 757709 |
+| 272 | [46124102837](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124102837) | 2,000 / 2,000 / 2,000 | 0 | 0 | 0 | 768780 / 763821 / 758002 / 763308 / 759709 |
+
+Across these runs the ten attachments contained 4,000 player rows and 685,276 bytes. Name-colour changes: 4,000; cosmetics: 3,836; names: 35; released games: 25; ranks: 1 (one rank row in worker 2 of Run 272; field categories can overlap). All runs stopped at the expected fetch cap with 600 pending per worker. No probe stage or probe429 activity appeared.
+
+Run #273 / [46124994080](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124994080) was dispatched by controller #347 / [46124923400](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124923400). Its prepare job passed and pinned the same runner SHA; the five worker jobs had entered the live Drip refresh step after successful SP-token resolution. Its worker logs and completion remain pending at this checkpoint; no Neon read is allowed while it is active.
+
+## Final acceptance guard in continuation controller
+
+Commit [43472a5](https://github.com/imu31465/bloxd-player-search-tasks/commit/43472a5a2320bd5d9f6b4991fdd8ba8be6e9c94a) updates `.github/workflows/enrich-continuation.yml`: five worker summaries reaching their cursor-cycle conditions no longer self-certify `status=completed`. The controller instead records `status=final_verification_required`, retains the cycle results, and stops automatic dispatch. The planner must independently verify the final four-shard database state, matching persisted cursors, zero orphan snapshots, historical fetch-error recovery via later player and snapshot timestamps, no active/queued writers, exact runner validation, and successful report delivery before setting `completed`.
+
+The push-triggered safety validation controller #348 / [46125577047](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46125577047) completed successfully while Run #273 was active. It detected the in-progress writer and skipped catch-up/dispatch; no duplicate writer was started.
+
+At this checkpoint the last committed structured progress is Run #272 / `last_run_id=46124102837`, `total_runs_observed=257`. All five cycles remain `wrapped=false` and `completed=false`. The last database-wide reconciliation is still the post-Run #248 read-only checkpoint above. Do not mark the current dataset complete based on the worker cursor summaries alone.
