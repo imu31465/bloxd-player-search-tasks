@@ -2123,3 +2123,41 @@ Field categories can overlap. All five prepared reports were non-empty and all f
 Controller #349 / [46125834959](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46125834959) processed Run #273 successfully, committed progress (last_run_id=46124994080, total_runs_observed=258), passed its safe-writer guard and dispatched Run #274 / [46125889821](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46125889821). Run #274's cutover and prepare passed; prepare pinned the same exact runner SHA. Five worker jobs had entered their refresh step after token resolution at the latest check. Do not query Neon until Run #274, its progress controller, and all writers are idle.
 
 All five cycles remain wrapped=false / completed=false. The database-wide checkpoint is still the verified post-Run #248 reconciliation; no post-Run #273 Neon queries were run because Run #274 is active.
+
+
+## Verified Enrichment Run #274 and four-shard reconciliation — 2026-11-28 UTC
+
+[Run #274 / 46125889821](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46125889821) completed successfully. Cutover, prepare, all five workers, and notify-controller passed. Prepare and every worker pinned exact source runner SHA `e615eb86c7e83935dc86dba30018141cbc819889`. Every worker used `--limit 1000 --sleep 0.7 --fetch-cap 400`; no obsolete probe arguments or probe429 stage appeared.
+
+| Worker | Fetched / changed / snapshots | Gone | Errors | Skipped | Pending | Colour | Cosmetics | Name | Games | Report rows | Attachment bytes | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 391 | 5 | 2 | 400 | 70,020 | 770785 → 772785 |
+| 1 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 391 | 10 | 4 | 400 | 70,225 | 765821 → 767821 |
+| 2 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 380 | 5 | 6 | 400 | 69,388 | 760002 → 762017 |
+| 3 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 385 | 4 | 2 | 400 | 67,478 | 765323 → 767323 |
+| 4 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 380 | 1 | 2 | 400 | 67,084 | 761719 → 763729 |
+| **Total** | **2,000 / 2,000 / 2,000** | **0** | **0** | **0** | **3,000** | **2,000** | **1,927** | **25** | **16** | **2,000** | **344,195** | — |
+
+All five per-player reports had 400 rows with nonzero attachment bytes, and all five Discord webhook deliveries returned HTTP 200. Field categories can overlap. Run #274's database write was independently confirmed: after the run start, 2,000 player rows and 2,000 snapshots were created/updated across the four physical shards (shard counts 504 / 497 / 500 / 499), matching the worker log total.
+
+### Four-shard read-only reconciliation after Run #274
+
+The audit ran after Run #274 and its notify-controller completed, with no active or queued enrich/census/sweep writer. Continuation controller #350 was in its protected safe-writer-window wait and had not dispatched another writer. No SQL mutation was performed.
+
+| Shard | Players | Snapshots | Empty cosmetics | Non-empty cosmetics | Max player ID | Orphan snapshots |
+|---:|---:|---:|---:|---:|---:|---:|
+| 01 | 818,243 | 191,328 | 632,497 | 185,746 | 3,433,345 | 0 |
+| 02 | 817,695 | 191,277 | 632,141 | 185,554 | 3,433,311 | 0 |
+| 03 | 817,823 | 191,383 | 632,107 | 185,716 | 3,433,327 | 0 |
+| 04 | 817,987 | 191,288 | 632,347 | 185,640 | 3,433,343 | 0 |
+| **Total** | **3,271,748** | **765,276** | **2,529,092** | **742,656** | **3,433,345** | **0** |
+
+Shard01's five persisted meta cursors exactly match Run #274's worker logs: **772785 / 767821 / 762017 / 767323 / 763729**.
+
+The inclusive forward scan (`Player.id >= worker cursor`, partitioned by `id % 5`) contains **2,509,840 rows**, split by workers 0–4 as **500,915 / 501,722 / 502,734 / 501,630 / 502,839**. Every forward row currently has empty cosmetics; no populated-cosmetics rows remain ahead of any worker cursor. There are **zero orphan snapshots**. The current maximum player ID across the four shards is **3,433,345**.
+
+The shared error journal has **182 current `:err` markers**. For **175**, both `players.updated_at` and the latest `player_snapshots.observed_at` are later than the recorded error timestamp. **Seven remain unresolved**, all below the original boundary **242336**; no above-boundary markers remain unresolved, and all 182 markers correspond to an existing player. Keep individual IDs private. Importantly, all seven transient HTTP 502 failures from Runs #251, #253, #258, #260, #261, #265 and #269 were independently verified recovered by both later player and snapshot timestamps. Their subsequent cursor advances are corroborated by database evidence.
+
+Controller #350 / [46126735753](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46126735753) has committed Run #274 progress (`last_run_id=46125889821`, `total_runs_observed=259`) and is currently waiting in the protected writer-window guard. At the checkpoint after this reconciliation, no writer was active or queued and no next enrichment run had been dispatched. Do not dispatch manually.
+
+All five worker cycles remain `wrapped=false` and `completed=false`. Their cursors are still far below the current maximum **3,433,345** and have not wrapped below **242336** and advanced back through the boundary. The seven below-boundary error markers still require actual journal-only retry after wraparound. This is a verified progress checkpoint, not full-pass completion. The full-pass controller now stops at `final_verification_required` rather than setting `completed` from worker summaries alone; only independent final acceptance can authorize completion.
