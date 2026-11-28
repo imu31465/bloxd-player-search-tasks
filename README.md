@@ -2352,3 +2352,9 @@ Exact-head candidate validation Run [#5 / 46139548311](https://github.com/imu314
 
 The source-repository native `Neon sharding tests` check Run [#70 / 46139530862](https://github.com/imu31465/bloxd-player-search/actions/runs/46139530862) failed twice before runner allocation. The targeted retry also has `steps=null` and `logs_url=null`; no native test step ran. Switching from `ubuntu-latest` to `ubuntu-24.04` did not resolve the allocation problem. The planner recorded this exact evidence in PR comment [7238529411](https://github.com/imu31465/bloxd-player-search/pull/16#issuecomment-7238529411). PR #16 remains open and unmerged; no failing-check bypass or manual merge was made. Its successful-fetch `:ok` attempt-journal/cooldown fix is independently validated but is **not yet deployed** to production runner.
 
+
+## Post-census enrichment resume — Controller #363 — 2026-11-28 UTC
+
+The census completed and the four-shard database reconciliation found no active writers. The controller's five-minute poll was then explicitly awakened by a workflow-file push because no post-census continuation event had appeared in the Actions history.
+
+Controller [#363 / 46140000213](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46140000213) passed the recovery self-tests and writer guard, detected the census as recent (Run #22; 13.7 minutes old), and resumed the existing full-profile chain with Enrich [#283 / 46140016755](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46140016755). Cutover and prepare passed; all five worker jobs started and all five live-SP-token resolution steps passed. At this checkpoint the five profile workers were still in progress. The controller remains the sole dispatcher; no manual second writer was launched.
