@@ -2163,3 +2163,18 @@ The shared error journal has **182 current `:err` markers**. For **175**, both `
 Controller #350 / [46126735753](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46126735753) has committed Run #274 progress (`last_run_id=46125889821`, `total_runs_observed=259`) and is currently waiting in the protected writer-window guard. At the checkpoint after this reconciliation, no writer was active or queued and no next enrichment run had been dispatched. Do not dispatch manually.
 
 All five worker cycles remain `wrapped=false` and `completed=false`. Their cursors are still far below the current maximum **3,433,345** and have not wrapped below **242336** and advanced back through the boundary. The seven below-boundary error markers still require actual journal-only retry after wraparound. This is a verified progress checkpoint, not full-pass completion. The full-pass controller now stops at `final_verification_required` rather than setting `completed` from worker summaries alone; only independent final acceptance can authorize completion.
+
+
+## Census arrival grace hardening and active Run #275 — 2026-11-28 UTC
+
+The continuation controller had a five-minute post-:47 UTC census-arrival grace. Actual scheduled census Run #21 / [46100544717](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46100544717) was created at 02:57:35Z despite its :47 cron slot, a 10m35s delay. The old five-minute grace could therefore have admitted an enrichment continuation before that delayed writer appeared.
+
+The controller guard was corrected in commit [f6878bd](https://github.com/imu31465/bloxd-player-search-tasks/commit/f6878bd1660d5fc81303eed6ffc3b8521f81b285): the *post-slot* arrival grace is now 15 minutes; the pre-slot margin remains 15 minutes. Shared writer concurrency remains `player-search-writers` with `cancel-in-progress=false`.
+
+Validation Run #117 / [46127608219](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46127608219) passed all eight jobs. Its scheduled-runner validation pinned exact source SHA `e615eb86c7e83935dc86dba30018141cbc819889`, verified the full-profile journal gate and per-player notification behavior, passed 53 unit/SQLite tests and four-shard PostgreSQL writer integration. Workflow YAML, merged main, Altare migration, secret/Neon, token and gateway checks also passed.
+
+Controller #350 / [46126735753](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46126735753) had already loaded the previous five-minute guard and dispatched Run #275 / [46127792729](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46127792729). This run is the sole active writer. Its cutover and prepare passed; prepare pinned exact runner SHA `e615eb86c7e83935dc86dba30018141cbc819889`; all five worker jobs entered their refresh steps after successful token resolution. Do not query Neon or manually dispatch another writer until Run275 and its progress controller complete, and any delayed census writer is no longer active/queued.
+
+Push-triggered controller #351 / [46127608216](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46127608216) was queued behind #350 in the non-cancelling controller concurrency group, then completed successfully. It detected Run275 already active and skipped catch-up/requeue/dispatch, so it did not create a duplicate. Future controller runs load the corrected 15-minute post-slot grace.
+
+All five full-pass cycles remain wrapped=false/completed=false. The most recent independent all-shard DB checkpoint is post-Run274 above; Run275 still requires its worker-log and subsequent DB reconciliation.
