@@ -115,10 +115,12 @@ jobs:
             git@github.com:imu31465/bloxd-player-search.git src
 
           if [[ "$SOURCE_REF" == "runner" ]]; then
-            # Deepen while the read-only deploy key is still available.
-            # The two required accepted commits are 11–12 commits behind runner;
-            # deepen past both so merge-base tests do not fail on absent objects.
-            git -C src fetch --deepen=32 origin runner
+            # Pull the complete runner ancestry while the read-only deploy key
+            # is still available. The branch receives frequent documentation
+            # commits, so a fixed shallow depth can silently move past the
+            # accepted feature commits and make merge-base checks fail because
+            # their commit objects were never fetched.
+            git -C src fetch --unshallow origin runner
             git -C src merge-base --is-ancestor \
               a2d8695bc6e1d1096fbfdb23b60ba5348a860090 HEAD
             git -C src merge-base --is-ancestor \
