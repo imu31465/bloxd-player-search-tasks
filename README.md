@@ -2319,3 +2319,36 @@ Fixed .github/workflows/source-pr-validation.yml to use git fetch --unshallow or
 Validation Run [#121 / 46139149347](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46139149347), on task main commit 7b9392389dbc30ecfbadbaf1876c7669f6bf0770, passed all eight jobs. The scheduled runner validation pinned exact current source 5ecd484fd0ae1524992dead43bfa99b629165c12, confirmed full-profile journal-only fetching and Discord-report behavior, passed all 55 unit/SQLite tests and four-shard disposable PostgreSQL integration. Main source validation (37 tests), Altare PostgreSQL migration suite, current Bloxd token, scheduled-runner secret/Neon access, gateway/login, and workflow YAML validation also passed.
 
 This fixes task-repository validation only; it does not change the private production runner branch or PR #16. PR #16's native source-repository tests check still has its independent attempt-3 runner-allocation failure (no steps/logs), while its exact-head public-runner validation is green. PR #16 remains open/unmerged and successful :ok attempt-journal persistence is not yet deployed.
+
+
+## Census recovery and four-shard reconciliation — Run #22 — 2026-11-28 UTC
+
+The continuation controller's overdue-census recovery was exercised against the live state. After Enrich #282 completed, controller #362 / [46138889169](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46138889169) detected that the latest census was 496.8 minutes old and that no census/sweep/enrich writer was queued or active. It dispatched the canonical four-shard census Run #22 and deliberately skipped the next enrichment dispatch so the two writers could not overlap.
+
+Canonical census Run [#22 / 46138937584](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46138937584) completed successfully:
+- Cutover gate and prepare passed; prepare pinned the source runner at `5ecd484fd0ae1524992dead43fba99b629165c12`.
+- The 40,000-ID window **3,431,346–3,471,345** was split into four contiguous 10,000-ID shards. All four scan jobs and the finalizer succeeded.
+- Shard results (index 0–3): found **9,354 / 9,330 / 9,155 / 9,092**; added **7,611 / 9,330 / 9,155 / 9,092**. Shard 0 preserved **1,743** already-enriched rows instead of overwriting their profile data. Every probe range completed with zero unresolved errors.
+- Finalizer: **36,931 found**, **35,188 added**, total **3,306,936**, max player ID **3,471,345**, highest hit offset **40,000/40,000**, and next frontier cursor **3,469,345** (2,000-ID overlap). Elapsed **369 seconds**.
+- Discord count notification was accepted by the configured webhook: **HTTP 204**. The corrected source code labels total-player count and maximum player ID separately; Run #22 is the first canonical production census after this correction.
+
+After all writer workflows were completed, a read-only Neon reconciliation confirmed:
+
+| Shard | Players | Max player ID | Snapshots | Orphan snapshots |
+|---|---:|---:|---:|---:|
+| shard-01 | 827,052 | 3,471,311 | 195,240 | 0 |
+| shard-02 | 826,482 | 3,471,327 | 195,192 | 0 |
+| shard-03 | 826,612 | 3,471,343 | 195,297 | 0 |
+| shard-04 | 826,790 | 3,471,345 | 195,203 | 0 |
+| **Total** | **3,306,936** | **3,471,345** | **780,932** | **0** |
+
+The four-shard total increased from **3,271,748** to **3,306,936**, exactly matching the finalizer's **35,188** added count. Census control metadata on shard-01 records `census_last_found=36931`, `census_frontier_cursor=3469345`, and `census_last_update=1795864872`. No player IDs or personal profile details are published here.
+
+## PR #16 latest exact-head validation and native runner blocker — 2026-11-28 UTC
+
+PR [#16](https://github.com/imu31465/bloxd-player-search/pull/16) is now at head `868911a48d3e8ed3d0236c8f95b472d01d82e021`, based on production runner `5ecd484fd0ae1524992dead43fba99b629165c12`. The head pins the source repository's native sharding-test runner to Ubuntu 24.04.
+
+Exact-head candidate validation Run [#5 / 46139548311](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46139548311) fetched and verified that exact SHA, passed compileall, all **59 unit/SQLite tests**, and disposable PostgreSQL four-shard writer integration (including control-shard-only attempt-journal writes).
+
+The source-repository native `Neon sharding tests` check Run [#70 / 46139530862](https://github.com/imu31465/bloxd-player-search/actions/runs/46139530862) failed twice before runner allocation. The targeted retry also has `steps=null` and `logs_url=null`; no native test step ran. Switching from `ubuntu-latest` to `ubuntu-24.04` did not resolve the allocation problem. The planner recorded this exact evidence in PR comment [7238529411](https://github.com/imu31465/bloxd-player-search/pull/16#issuecomment-7238529411). PR #16 remains open and unmerged; no failing-check bypass or manual merge was made. Its successful-fetch `:ok` attempt-journal/cooldown fix is independently validated but is **not yet deployed** to production runner.
+
