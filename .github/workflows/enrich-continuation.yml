@@ -445,9 +445,16 @@ jobs:
               progress["last_pause_reason"] = pause_reason
               dispatch = False
           elif len(completed) == 5:
-              progress["status"] = "completed"
-              progress["completed_at"] = datetime.now(timezone.utc).isoformat()
-              progress["last_pause_reason"] = None
+              # Worker summaries alone cannot satisfy final acceptance. This
+              # controller has no all-shard Neon reconciliation, persisted-
+              # cursor parity check, or timestamp/snapshot proof for every
+              # historical fetch error. Stop the unattended chain at an
+              # explicit verification gate and let the planner set
+              # status=completed only after those independent checks pass.
+              progress["status"] = "final_verification_required"
+              progress["final_verification_required_at"] = datetime.now(timezone.utc).isoformat()
+              progress["last_pause_reason"] = "awaiting-final-four-shard-acceptance"
+              progress.pop("completed_at", None)
               dispatch = False
           else:
               progress["status"] = "running"
