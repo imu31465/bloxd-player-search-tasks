@@ -1,0 +1,96 @@
+name: Recover stalled enrichment controller
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "CONTROLLER_RECOVERY_REQUEST.json"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel-stalled-controller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify handoff and cancel only the stalled controller
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/controller-recovery.env
+          import json
+          from pathlib import Path
+          request = json.loads(Path("CONTROLLER_RECOVERY_REQUEST.json").read_text(encoding="utf-8"))
+          target = int(request["stalled_controller_run_id"])
+          replacement = int(request["pending_replacement_controller_run_id"])
+          if target <= 0 or replacement <= 0 or target == replacement:
+              raise SystemExit("invalid controller run IDs")
+          print(f"TARGET_RUN_ID={target}")
+          print(f"REPLACEMENT_RUN_ID={replacement}")
+          PY
+          source /tmp/controller-recovery.env
+
+          api="https://api.github.com/repos/${REPOSITORY}/actions/runs"
+          curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}?per_page=100" -o /tmp/runs.json
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          runs = json.loads(Path("/tmp/runs.json").read_text(encoding="utf-8")).get("workflow_runs", [])
+          target_id = int(os.environ["TARGET_RUN_ID"])
+          replacement_id = int(os.environ["REPLACEMENT_RUN_ID"])
+          by_id = {int(run["id"]): run for run in runs}
+          target = by_id.get(target_id)
+          replacement = by_id.get(replacement_id)
+          if not target or int(target.get("workflow_id", 0)) != 428603238:
+              raise SystemExit("target is not the known enrichment controller workflow")
+          if target.get("status") != "in_progress":
+              raise SystemExit(f"target is no longer in progress: {target.get('status')}")
+          if not replacement or int(replacement.get("workflow_id", 0)) != 428603238:
+              raise SystemExit("replacement controller is not present")
+          if replacement.get("status") not in {"pending", "queued", "in_progress"}:
+              raise SystemExit(f"replacement controller is not waiting to take over: {replacement.get('status')}")
+          writer_ids = {426133178, 426133230, 426133266}
+          active_writers = [
+              run for run in runs
+              if int(run.get("workflow_id", 0)) in writer_ids
+              and run.get("status") in {"queued", "in_progress", "waiting", "requested"}
+          ]
+          if active_writers:
+              raise SystemExit("active/queued writer detected; refusing to cancel controller")
+          print(f"Verified stalled controller {target_id} and pending replacement {replacement_id}; no writer is active.")
+          PY
+          curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 \
+            -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/${TARGET_RUN_ID}/cancel" -o /tmp/cancel.json
+
+          cancelled=false
+          for attempt in $(seq 1 30); do
+            curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "${api}/${TARGET_RUN_ID}" -o /tmp/target.json
+            state="$(python3 -c 'import json; x=json.load(open("/tmp/target.json")); print(str(x.get("status")) + "|" + str(x.get("conclusion") or ""))')"
+            echo "target controller state: ${state}"
+            if [[ "${state}" == "completed|cancelled" ]]; then
+              cancelled=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "${cancelled}" != true ]]; then
+            echo "::error::Did not observe the stalled controller become completed/cancelled."
+            exit 1
+          fi
+          echo "Stalled controller cancelled. The already-pending replacement owns the next progress catch-up."
