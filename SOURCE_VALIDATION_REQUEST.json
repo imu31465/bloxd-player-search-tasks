@@ -1,8 +1,8 @@
 {
-  "source_sha": "a711f6fced9d1e7b3fa34d9181c57d9214dae3f3",
+  "source_sha": "e7a41bcb9d8bc1d3a1f851614522b57a2ddf2c0d",
   "pull_request": 16,
   "purpose": "Validate successful profile-fetch journal persistence and control-shard transaction behavior",
   "created_at": "2026-11-28T09:40:00Z",
-  "retry": 3,
-  "note": "Validate updated exact PR head with PostgreSQL bulk-journal assertion"
+  "retry": 4,
+  "note": "Validate latest PR16 head including fail-closed manual sweep journal persistence"
 }
