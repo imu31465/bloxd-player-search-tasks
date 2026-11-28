@@ -2103,3 +2103,23 @@ Commit [43472a5](https://github.com/imu31465/bloxd-player-search-tasks/commit/43
 The push-triggered safety validation controller #348 / [46125577047](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46125577047) completed successfully while Run #273 was active. It detected the in-progress writer and skipped catch-up/dispatch; no duplicate writer was started.
 
 At this checkpoint the last committed structured progress is Run #272 / `last_run_id=46124102837`, `total_runs_observed=257`. All five cycles remain `wrapped=false` and `completed=false`. The last database-wide reconciliation is still the post-Run #248 read-only checkpoint above. Do not mark the current dataset complete based on the worker cursor summaries alone.
+
+
+## Verified Enrichment Run #273 and active Run #274 — 2026-11-28 UTC
+
+Run #273 / [46124994080](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46124994080) completed successfully. Cutover, prepare, all five workers and notify-controller passed. Prepare and every worker pinned exact runner SHA e615eb86c7e83935dc86dba30018141cbc819889; all workers used --limit 1000 --sleep 0.7 --fetch-cap 400.
+
+| Worker | Fetched / changed / snapshots | Gone | Errors | Skipped | Pending | Colour | Cosmetics | Name | Games | Report rows | Attachment bytes | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 / 400 / 400 | 1 | 0 | 0 | 599 | 400 | 386 | 5 | 3 | 400 | 69,702 | 768780 → 770785 |
+| 1 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 389 | 11 | 6 | 400 | 72,647 | 763821 → 765821 |
+| 2 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 381 | 0 | 1 | 400 | 65,595 | 758002 → 760002 |
+| 3 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 390 | 8 | 5 | 400 | 73,473 | 763308 → 765323 |
+| 4 | 400 / 400 / 400 | 1 | 0 | 0 | 599 | 400 | 379 | 7 | 10 | 400 | 68,741 | 759709 → 761719 |
+| **Total** | **2,000 / 2,000 / 2,000** | **2** | **0** | **0** | **2,998** | **2,000** | **1,925** | **31** | **25** | **2,000** | **350,158** | — |
+
+Field categories can overlap. All five prepared reports were non-empty and all five Discord deliveries returned HTTP 200. No probe429 stage or unexpected fetch errors occurred. The two gone profiles are handled as expected and are not fetch errors.
+
+Controller #349 / [46125834959](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46125834959) processed Run #273 successfully, committed progress (last_run_id=46124994080, total_runs_observed=258), passed its safe-writer guard and dispatched Run #274 / [46125889821](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46125889821). Run #274's cutover and prepare passed; prepare pinned the same exact runner SHA. Five worker jobs had entered their refresh step after token resolution at the latest check. Do not query Neon until Run #274, its progress controller, and all writers are idle.
+
+All five cycles remain wrapped=false / completed=false. The database-wide checkpoint is still the verified post-Run #248 reconciliation; no post-Run #273 Neon queries were run because Run #274 is active.
