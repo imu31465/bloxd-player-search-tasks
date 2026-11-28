@@ -34,6 +34,9 @@ jobs:
         with:
           ref: main
 
+      - name: Test overdue census recovery guard
+        run: python3 .github/scripts/census_recovery_guard.py --self-test
+
       - name: Download exact gate and worker logs by job ID
         id: plan
         env:
@@ -634,8 +637,36 @@ jobs:
           # controller starts before a just-completed run appears in Actions.
           gh api --method POST "repos/${REPOSITORY}/actions/workflows/enrich-continuation.yml/dispatches" -f ref=main
 
+      - name: Recover overdue census before another enrichment writer
+        id: census-recovery
+        if: ${{ steps.plan.outcome == 'success' && steps.catch-up.outputs.pending != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --connect-timeout 10 --max-time 30 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPOSITORY}/actions/runs?per_page=100" \
+            -o /tmp/census-recovery-runs.json
+          decision="$(python3 .github/scripts/census_recovery_guard.py /tmp/census-recovery-runs.json)"
+          due="${decision%%|*}"
+          reason="${decision#*|}"
+          echo "census recovery decision: ${reason}"
+          echo "due=${due}" >> "$GITHUB_OUTPUT"
+          if [[ "${due}" == "true" ]]; then
+            gh api --method POST "repos/${REPOSITORY}/actions/workflows/census.yml/dispatches" \
+              -f ref=main -f 'inputs[window]=0'
+            echo "dispatched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dispatched=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Dispatch the next bounded pass
-        if: ${{ steps.plan.outputs.dispatch == 'true' && steps.writer-guard.outputs.safe == 'true' && steps.catch-up.outputs.pending != 'true' }}
+        if: ${{ steps.plan.outputs.dispatch == 'true' && steps.writer-guard.outputs.safe == 'true' && steps.catch-up.outputs.pending != 'true' && steps.census-recovery.outputs.dispatched != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}

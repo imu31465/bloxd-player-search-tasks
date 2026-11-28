@@ -21,16 +21,24 @@ source and player data are not copied here.
 
 | Workflow | Trigger | Work |
 |---|---|---|
-| `census.yml` | Hourly at :47 UTC + manual | Four parallel ID-range workers; shared moving frontier |
+| `census.yml` | Hourly at :47 UTC + manual + guarded overdue recovery | Four parallel ID-range workers; shared moving frontier |
 | `sweep.yml` | Manual recovery + cutover-file transition | Five concurrent social-profile recovery workers |
 | `enrich.yml` | Daily + manual + `ENRICH_NOW.json` commit | Full-profile refresh for every player whose last successful fetch is at least 24h old; also supports forced IDs |
-| `enrich-continuation.yml` | `workflow_run` after enrich/census/sweep completion + every 5 minutes + manual | Reconcile exact worker logs, update controller-owned progress, wait for the reserved-writer safety window, and dispatch exactly one next bounded enrichment batch |
+| `enrich-continuation.yml` | `workflow_run` after enrich/census/sweep completion + every 5 minutes + manual | Reconcile exact worker logs; recover overdue census before dispatching the next enrichment batch |
 | `name-scan.yml` | Manual | Four-character name availability scan |
 | `source-pr-validation.yml` | Manual + workflow-file update | Test merged source `main`/`runner` and merged Altare `main`, run PostgreSQL integration suites on disposable services, verify runner secrets with read-only Neon SELECTs, and lint workflow YAML |
 | `production-availability.yml` | Every 15 minutes + manual + monitor-file update | Check the public gateway, all four Neon shards, and the login page; send Discord alert only when a check fails |
 
 Each workflow checks out the private source repository's `runner` branch using
 the read-only `DEPLOY_KEY` repository secret.
+
+The continuation controller also recovers a missed hourly census schedule. It
+checks the latest census run and all queued/active writer runs; only when no
+census, sweep, or enrichment writer is queued or active and the last census is
+at least 80 minutes old does it dispatch one bounded census run. The guard
+preserves 15 minutes around the reserved UTC :47 slot. A recovered census takes
+priority over the next enrichment batch; all writers still share the
+`player-search-writers` concurrency group.
 
 ## Writer serialization
 
@@ -44,7 +52,9 @@ would duplicate API work and slow the same cursor chain. The daily enrich job
 runs at 01:37 UTC, and `ENRICH_NOW.json` can still start a one-shot run. The
 continuation controller checks all active/queued census, manual sweep, and
 enrich runs, preserves a 15-minute guard around the census slot at UTC :47,
-and waits for a safe window before dispatching one bounded batch.
+and waits for a safe window before dispatching one bounded batch. If the
+hourly census has not started for 80 minutes, it recovers that scan before
+starting another enrichment writer.
 
 ## Cutover lock
 
