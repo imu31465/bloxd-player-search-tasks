@@ -5,8 +5,12 @@ on:
     inputs:
       source_sha:
         description: Exact 40-character source commit SHA to validate
-        required: true
+        required: false
         type: string
+  push:
+    branches: [main]
+    paths:
+      - "SOURCE_VALIDATION_REQUEST.json"
 
 permissions:
   contents: read
@@ -82,11 +86,15 @@ jobs:
         shell: bash
         env:
           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-          SOURCE_SHA: ${{ inputs.source_sha }}
+          SOURCE_SHA_INPUT: ${{ inputs.source_sha || '' }}
         run: |
           set -euo pipefail
+          SOURCE_SHA="$SOURCE_SHA_INPUT"
+          if [[ -z "$SOURCE_SHA" && -f SOURCE_VALIDATION_REQUEST.json ]]; then
+            SOURCE_SHA="$(python -c 'import json; print(json.load(open("SOURCE_VALIDATION_REQUEST.json", encoding="utf-8")).get("source_sha", ""))')"
+          fi
           if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::source_sha must be a full 40-character commit SHA."
+            echo "::error::Provide a full 40-character SHA input or SOURCE_VALIDATION_REQUEST.json."
             exit 2
           fi
           if [[ -z "${DEPLOY_KEY:-}" ]]; then
