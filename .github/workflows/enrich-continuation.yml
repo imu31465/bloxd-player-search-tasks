@@ -514,11 +514,21 @@ jobs:
           # if writer reservations keep recurring, a later five-minute poll retries.
           deadline=$(( $(date +%s) + 4800 ))
           while true; do
-            curl --fail --silent --show-error --location \
+            if ! curl --fail --silent --show-error --location \
+              --connect-timeout 10 --max-time 30 \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${REPOSITORY}/actions/runs?per_page=100" \
-              -o /tmp/enrich-active-runs.json
+              -o /tmp/enrich-active-runs.json; then
+              echo "::warning::GitHub Actions runs API was unavailable; retrying the writer guard."
+              if (( $(date +%s) >= deadline )); then
+                echo "safe=false" >> "$GITHUB_OUTPUT"
+                echo "reason=wait-timeout:github-api-unavailable" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              sleep 60
+              continue
+            fi
             result="$(python3 - <<'PY'
           import json
           from datetime import datetime, timedelta, timezone
