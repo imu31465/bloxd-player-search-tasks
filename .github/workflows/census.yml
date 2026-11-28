@@ -23,6 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: read
 
 jobs:
@@ -218,6 +219,34 @@ jobs:
           printf '%s' "$SCAN_PLAN" > scan-plan.json
           python tools/run_masked.py tools/update_frontier.py \
             --finalize --plan-file scan-plan.json --run-id "$CENSUS_RUN_ID"
+
+  notify-controller:
+    needs: [cutover-gate, prepare, scan, finalize]
+    if: ${{ always() && !cancelled() && needs.cutover-gate.result == 'success' && needs.cutover-gate.outputs.enabled == 'true' && needs.finalize.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake continuation controller after census finalization
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if gh api --method POST "repos/${REPOSITORY}/actions/workflows/enrich-continuation.yml/dispatches" -f ref=main >/dev/null; then
+              echo "Continuation controller dispatch accepted after census."
+              exit 0
+            fi
+            echo "Controller dispatch failed (attempt ${attempt}/5); retrying." >&2
+            if [[ "${attempt}" -lt 5 ]]; then
+              sleep $((attempt * 3))
+            fi
+          done
+          # The workflow_run and guarded five-minute poll remain independent
+          # fallbacks; a transient API failure must not turn a valid census
+          # into a failed run after the finalizer has already committed.
+          echo "::warning::Controller dispatch did not succeed after five attempts; workflow_run/schedule fallback will recover."
+          exit 0
 
   notify-failure:
     if: ${{ needs.cutover-gate.outputs.enabled == 'true' && failure() }}
