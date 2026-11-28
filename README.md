@@ -2236,7 +2236,7 @@ The continuation controller's protected writer-window guard now bounds each GitH
 
 Workflow update commit: `fb31a1bcf61f9296b174ec6a767244bc23fcf3a0`. It queued controller #357 / [46132428009](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46132428009) behind controller #354 / [46130272940](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46130272940). The earlier pending controller #356 was superseded by the newer pending controller due the workflow's single pending concurrency slot. At the latest check #354 was still at the writer guard and #357 pending; no writer was active. Do not manually dispatch or cancel an enrichment writer. Progress JSON remains at Run277 until a controller catches up Run278 and commits it.
 
-The exact cause of #354's unusually long writer-guard step is not confirmed because GitHub does not expose a running job log blob. An unbounded API request was a plausible hang point; the new cap ensures later controller attempts can recover without weakening writer exclusion.
+The completed #354 logs are now available and confirm the guard was operating normally, not hung: it observed the #278 enrich writer as active through 09:34:47Z, then waited because the next reserved census slot was within 15 minutes, and after 09:47Z it correctly applied the 15-minute delayed-census arrival grace. The guarded recovery cancelled #354 at 09:57:18Z (after 9.6 minutes of that grace), while no writer was active, and pending replacement #357 immediately took over with the same guard. The 10-second connect / 30-second API timeout remains defense-in-depth, not a fix for a proven curl hang.
 
 
 ## PR #16 latest validation — head e7a41bcb — 2026-11-28 UTC
