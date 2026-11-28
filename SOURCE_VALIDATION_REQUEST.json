@@ -2,5 +2,7 @@
   "source_sha": "9523fec17cb0181ca965315585ad54b29d94da39",
   "pull_request": 16,
   "purpose": "Validate successful profile-fetch journal persistence and control-shard transaction behavior",
-  "created_at": "2026-11-28T09:40:00Z"
+  "created_at": "2026-11-28T09:40:00Z",
+  "retry": 2,
+  "note": "Retry after fixing SSH key newline preservation"
 }
