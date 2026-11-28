@@ -2178,3 +2178,23 @@ Controller #350 / [46126735753](https://github.com/imu31465/bloxd-player-search-
 Push-triggered controller #351 / [46127608216](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46127608216) was queued behind #350 in the non-cancelling controller concurrency group, then completed successfully. It detected Run275 already active and skipped catch-up/requeue/dispatch, so it did not create a duplicate. Future controller runs load the corrected 15-minute post-slot grace.
 
 All five full-pass cycles remain wrapped=false/completed=false. The most recent independent all-shard DB checkpoint is post-Run274 above; Run275 still requires its worker-log and subsequent DB reconciliation.
+
+
+## Verified Enrichment Run #275 and active Run #276 — 2026-11-28 UTC
+
+[Run #275 / 46127792729](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46127792729) completed successfully. Cutover, prepare, all five worker jobs and notify-controller passed. Prepare and all five workers pinned exact source runner SHA `e615eb86c7e83935dc86dba30018141cbc819889`. Each worker used `--limit 1000 --sleep 0.7 --fetch-cap 400`; no deprecated probe arguments or probe429 stage appeared.
+
+| Worker | Fetched / changed / snapshots | Gone | Errors | Skipped | Pending | Colour | Cosmetics | Name | Games | Rank | Report rows | Attachment bytes | Cursor |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 392 | 11 | 6 | 1 | 400 | 72,487 | 772785 → 774785 |
+| 1 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 384 | 7 | 6 | 0 | 400 | 70,464 | 767821 → 769821 |
+| 2 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 381 | 4 | 4 | 0 | 400 | 67,718 | 762017 → 764037 |
+| 3 | 400 / 400 / 400 | 1 | 0 | 0 | 599 | 400 | 387 | 8 | 2 | 0 | 400 | 70,765 | 767323 → 769328 |
+| 4 | 400 / 400 / 400 | 0 | 0 | 0 | 600 | 400 | 389 | 6 | 5 | 0 | 400 | 72,236 | 763729 → 765734 |
+| **Total** | **2,000 / 2,000 / 2,000** | **1** | **0** | **0** | **2,999** | **2,000** | **1,933** | **36** | **23** | **1** | **2,000** | **353,670** | — |
+
+The rank count is a single non-super rank change; field categories may overlap. All five reports had 400 rows and nonzero attachment bytes, and all five Discord webhook deliveries returned HTTP 200. The single gone profile did not block the remaining work.
+
+Controller #352 / [46128572498](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46128572498) processed Run275, committed progress (`last_run_id=46127792729`, `total_runs_observed=260`), passed the 15-minute post-census arrival guard and dispatched Run #276 / [46128617736](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46128617736) at 09:02:59Z. Run276's cutover and prepare passed; prepare pinned the same exact runner SHA. Five worker jobs entered Drip refresh after token resolution. Run276 is the only active writer; do not query Neon or manually dispatch another writer until it and its controller complete.
+
+All five worker cycles remain `wrapped=false` / `completed=false`. The last independent four-shard DB checkpoint remains post-Run274. Run275's worker results are recorded here, but no new database reconciliation was performed because Run276 was already active.
