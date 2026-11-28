@@ -34,7 +34,9 @@ jobs:
           print(f"TARGET_RUN_ID={target}")
           print(f"REPLACEMENT_RUN_ID={replacement}")
           PY
+          set -a
           source /tmp/controller-recovery.env
+          set +a
 
           api="https://api.github.com/repos/${REPOSITORY}/actions/runs"
           curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 \
