@@ -52,8 +52,9 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/enrich-run-logs
 
-          # workflow_run is the fast path. A five-minute poll is the durable
-          # fallback for GitHub occasionally omitting workflow_run deliveries.
+          # workflow_run is the fast path. Keep the five-minute poll independent:
+          # it also resumes an idle enrichment chain when a bot-dispatched
+          # recovery writer's completion event is delayed or omitted.
           if [[ -z "${RUN_ID}" ]]; then
             # A GITHUB_TOKEN-dispatched controller may start just before the
             # parent enrich workflow reaches its final completed state. Wait
