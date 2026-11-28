@@ -1929,3 +1929,49 @@ Using the Run #239 cursors, the inclusive forward scan (`Player.id >= worker cur
 A fresh comparison of the full error journal found **174** current `bloxd_fetch` `:err` markers. **167** have both a later player `updated_at` and later snapshot than the recorded error timestamp. **Seven remain unresolved**, all below the original boundary **242336**; no above-boundary errors remain unresolved, and all markers correspond to an existing player row. Keep individual IDs private. These seven old low-boundary cases must be resolved through the new journal-only fetch policy after wraparound; their prior A-gate classifications are historical and cannot be used to skip them.
 
 All five worker cycles remain `wrapped=false` and `completed=false`. Their cursors have not passed the current four-shard maximum **3,395,345**, wrapped below **242336**, and advanced back through the boundary. This is a verified checkpoint, not full-pass completion. Controller #311 / [46083448179](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46083448179) remains the owner of the next continuation; no manual dispatch or overlapping writer is permitted.
+
+## Live profile-change notification verification — Runs #240–246, 2026-11-28
+
+The first post-PR #13 production batches used the exact merged runner source
+SHA `e8cb550ec77dcb9b41f99dee20646e85f12b37fa`. The prepare jobs for Runs
+[#240](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46084883098),
+[#241](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46085879151),
+[#242](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46086941637),
+[#243](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46087908032),
+[#244](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46090197347),
+[#245](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091149635),
+and [#246](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091929291)
+all pinned that exact SHA. All seven runs completed cutover, prepare, five
+worker jobs, and notify-controller successfully. Each worker used
+`--limit 1000 --sleep 0.7 --fetch-cap 400`; no removed probe arguments or
+probe429 activity appeared.
+
+Across these seven bounded runs, the 35 workers recorded **14,000 successful
+profile fetches** and **13,275 tracked-profile changes/snapshots**. Field
+change counts were **13,275 name-colour**, **11,793 cosmetics**, **264 name**,
+and **135 released-game** changes (categories can overlap). Remaining fetched
+profiles were unchanged in tracked display fields; a successful full fetch
+still refreshes the player record and play statistics.
+
+Most importantly, every one of the 35 worker logs printed a prepared
+`profile_changes_*.txt` report count and attachment byte size, followed by
+`discord notify delivered (HTTP 200)`. The report included 13,275 per-player
+entries in total. This confirms the notification change is live, not just
+passing unit tests. Social URLs and raw cosmetic values remain redacted.
+Stats-only and super-only rank churn remain filtered.
+
+One Cloudflare HTTP 502 occurred in Run #244 on shard 4 at the retained cursor.
+Run #245 preserved the cursor while the 10-minute failure cooldown was still
+active. Run #246 revisited the same cursor after cooldown, had zero fetch
+errors, and advanced from 708594 to 710599; the retry no longer blocks progress.
+The expected fetch-cap stops and approximately 599–600 pending rows per worker
+are intentional bounded continuation, not failed runs.
+
+Run #247 / [46092864096](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46092864096)
+is the current continuation, dispatched by controller #318 / [46092807986](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46092807986).
+Its prepare job also pinned source SHA `e8cb550ec77dcb9b41f99dee20646e85f12b37fa`;
+all five drip workers were active at the last check. Do not start another
+writer. The most recent four-shard Neon reconciliation remains the Run #239
+checkpoint above; no DB reads are allowed while Run #247 or another writer is
+active. The initial full refresh remains in progress and no worker cycle is
+complete yet.
