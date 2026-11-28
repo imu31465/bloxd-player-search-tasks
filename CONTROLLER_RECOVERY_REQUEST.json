@@ -1,0 +1,5 @@
+{
+  "stalled_controller_run_id": 46130272940,
+  "pending_replacement_controller_run_id": 46132428009,
+  "reason": "Controller #354 has remained in its writer-guard step for over 30 minutes without an available running-step log; its original curl request has no per-request timeout. No enrich/census/sweep writer is active or queued. The hardened replacement #357 is already pending. Cancel only controller #354 after verifying both conditions; never cancel a writer."
+}
