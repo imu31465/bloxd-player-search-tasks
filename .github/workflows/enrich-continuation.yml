@@ -539,9 +539,10 @@ jobs:
                   slot += timedelta(hours=1)
               deltas.append((slot - now).total_seconds() / 60)
           minutes_to_writer = min(deltas)
-          # The scheduled census can appear a couple of minutes after :47 UTC.
-          # Keep a five-minute arrival grace so continuation cannot acquire the
-          # shared lock before that writer appears. Manual sweeps are checked above.
+          # GitHub delayed census delivery is not limited to a couple of minutes:
+          # census Run #21 was scheduled for 02:47 UTC but started at 02:57:35Z.
+          # Keep a 15-minute arrival grace so continuation cannot acquire the
+          # shared lock before a delayed reserved writer appears. Manual sweeps are checked above.
           recent_slot_ages = []
           for minute in (47,):
               slot = now.replace(minute=minute, second=0, microsecond=0)
@@ -551,7 +552,7 @@ jobs:
           minutes_since_writer = min(recent_slot_ages)
           if active:
               print("false|another-writer-is-active-or-queued")
-          elif minutes_since_writer <= 5:
+          elif minutes_since_writer <= 15:
               print(f"false|reserved-writer-arrival-grace-{minutes_since_writer:.1f}-minutes")
           # Match the pre-dispatch selection guard to the wait-loop margin.
           elif minutes_to_writer <= 15:
