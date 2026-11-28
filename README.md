@@ -1949,7 +1949,7 @@ SHA `e8cb550ec77dcb9b41f99dee20646e85f12b37fa`. The prepare jobs for Runs
 [#243](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46087908032),
 [#244](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46090197347),
 [#245](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091149635),
-and [#246](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091929291),
+and [#246](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091929291)
 and [#247](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46092864096)
 all pinned that exact SHA. All eight runs completed cutover, prepare, five
 worker jobs, and notification/controller handoff successfully. Each worker used
@@ -1959,8 +1959,8 @@ probe429 activity appeared.
 Across these eight bounded runs, the 40 workers recorded **16,000 successful
 profile fetches** and **15,274 tracked-profile changes/snapshots**. Field
 change counts were **15,274 name-colour**, **13,592 cosmetics**, **326 name**,
-**161 released-game**, and **1 rank** changes (categories can overlap). Remaining fetched
-profiles were unchanged in tracked display fields; a successful full fetch
+**161 released-game**, and **1 rank** changes (categories can overlap).
+Remaining fetched profiles were unchanged in tracked display fields; a successful full fetch
 still refreshes the player record and play statistics.
 
 Most importantly, every one of the 40 worker logs printed a prepared
