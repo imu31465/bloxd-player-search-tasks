@@ -2227,3 +2227,13 @@ PR #16, [Persist successful full-profile fetch journal outcomes](https://github.
 The latest PR head `a711f6fced9d1e7b3fa34d9181c57d9214dae3f3` passed exact-head candidate validation Run #3 / [46131853522](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46131853522): compileall, **59 unit/SQLite tests**, and the four-disposable-PostgreSQL-shard writer integration (including bulk journal writes confined to shard01) all passed. The repository-native `Neon sharding tests` PR check failed on all three attempts (the original pull-request run and two targeted retries). The latest job has `steps=null`, `logs_url=null`, and its log download returns BlobNotFound, so no test step ran. The independent exact-head candidate workflow is green, but PR #16 remains open/unmerged until the native check becomes green; no check bypass is authorized.
 
 No production Neon rows, player snapshots, player IDs, or secrets were changed or published by this fix or its validation.
+
+
+
+## Continuation-controller polling hardening — 2026-11-28
+
+The continuation controller's protected writer-window guard now bounds each GitHub Actions runs API request with a 10-second connect timeout and 30-second total timeout. Transient API failures are handled by retrying the guard loop instead of allowing one unbounded `curl` to hold the controller indefinitely; the existing 80-minute overall guard deadline and 15-minute census arrival grace remain unchanged.
+
+Workflow update commit: `fb31a1bcf61f9296b174ec6a767244bc23fcf3a0`. It queued controller #357 / [46132428009](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46132428009) behind controller #354 / [46130272940](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46130272940). The earlier pending controller #356 was superseded by the newer pending controller due the workflow's single pending concurrency slot. At the latest check #354 was still at the writer guard and #357 pending; no writer was active. Do not manually dispatch or cancel an enrichment writer. Progress JSON remains at Run277 until a controller catches up Run278 and commits it.
+
+The exact cause of #354's unusually long writer-guard step is not confirmed because GitHub does not expose a running job log blob. An unbounded API request was a plausible hang point; the new cap ensures later controller attempts can recover without weakening writer exclusion.
