@@ -1939,7 +1939,7 @@ A fresh comparison of the full error journal found **174** current `bloxd_fetch`
 
 All five worker cycles remain `wrapped=false` and `completed=false`. Their cursors have not passed the current four-shard maximum **3,395,345**, wrapped below **242336**, and advanced back through the boundary. This is a verified checkpoint, not full-pass completion. Controller #311 / [46083448179](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46083448179) remains the owner of the next continuation; no manual dispatch or overlapping writer is permitted.
 
-## Live profile-change notification verification — Runs #240–246, 2026-11-28
+## Live profile-change notification verification — Runs #240–247, 2026-11-28
 
 The first post-PR #13 production batches used the exact merged runner source
 SHA `e8cb550ec77dcb9b41f99dee20646e85f12b37fa`. The prepare jobs for Runs
@@ -1949,22 +1949,23 @@ SHA `e8cb550ec77dcb9b41f99dee20646e85f12b37fa`. The prepare jobs for Runs
 [#243](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46087908032),
 [#244](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46090197347),
 [#245](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091149635),
-and [#246](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091929291)
-all pinned that exact SHA. All seven runs completed cutover, prepare, five
-worker jobs, and notify-controller successfully. Each worker used
+and [#246](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46091929291),
+and [#247](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46092864096)
+all pinned that exact SHA. All eight runs completed cutover, prepare, five
+worker jobs, and notification/controller handoff successfully. Each worker used
 `--limit 1000 --sleep 0.7 --fetch-cap 400`; no removed probe arguments or
 probe429 activity appeared.
 
-Across these seven bounded runs, the 35 workers recorded **14,000 successful
-profile fetches** and **13,275 tracked-profile changes/snapshots**. Field
-change counts were **13,275 name-colour**, **11,793 cosmetics**, **264 name**,
-and **135 released-game** changes (categories can overlap). Remaining fetched
+Across these eight bounded runs, the 40 workers recorded **16,000 successful
+profile fetches** and **15,274 tracked-profile changes/snapshots**. Field
+change counts were **15,274 name-colour**, **13,592 cosmetics**, **326 name**,
+**161 released-game**, and **1 rank** changes (categories can overlap). Remaining fetched
 profiles were unchanged in tracked display fields; a successful full fetch
 still refreshes the player record and play statistics.
 
-Most importantly, every one of the 35 worker logs printed a prepared
+Most importantly, every one of the 40 worker logs printed a prepared
 `profile_changes_*.txt` report count and attachment byte size, followed by
-`discord notify delivered (HTTP 200)`. The report included 13,275 per-player
+`discord notify delivered (HTTP 200)`. The reports included 15,274 per-player
 entries in total. This confirms the notification change is live, not just
 passing unit tests. Social URLs and raw cosmetic values remain redacted.
 Stats-only and super-only rank churn remain filtered.
@@ -1977,10 +1978,21 @@ The expected fetch-cap stops and approximately 599–600 pending rows per worker
 are intentional bounded continuation, not failed runs.
 
 Run #247 / [46092864096](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46092864096)
-is the current continuation, dispatched by controller #318 / [46092807986](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46092807986).
-Its prepare job also pinned source SHA `e8cb550ec77dcb9b41f99dee20646e85f12b37fa`;
-all five drip workers were active at the last check. Do not start another
-writer. The most recent four-shard Neon reconciliation remains the Run #239
-checkpoint above; no DB reads are allowed while Run #247 or another writer is
-active. The initial full refresh remains in progress and no worker cycle is
-complete yet.
+completed successfully. Its prepare job pinned source SHA
+`e8cb550ec77dcb9b41f99dee20646e85f12b37fa`; all five workers reached the
+intentional fetch cap with zero fetch errors and zero probe429. The worker
+fetch/changed/snapshot counts were 400/400/400, 400/400/400, 400/400/400,
+400/400/400, and 400/399/399. All five per-player report attachments were
+prepared (69,476 / 73,425 / 69,975 / 72,616 / 70,716 bytes) and all five
+webhook posts returned HTTP 200. Cursor ends (workers 0–4):
+**721515 / 715556 / 712162 / 715203 / 712599**. One player was gone; no fetch
+error occurred.
+
+Controller #319 / [46093718093](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46093718093)
+has already committed Run #247 to `ENRICH_PROGRESS.json`
+(`last_run_id=46092864096`, `total_runs_observed=232`) and is waiting at the
+protected writer-window guard. Do not manually dispatch or overlap a writer.
+The latest four-shard Neon reconciliation remains the Run #239 checkpoint
+above; no DB reads are allowed while controller #319 or another writer is
+active. All five worker cycles remain incomplete and the initial full refresh
+is still in progress.
