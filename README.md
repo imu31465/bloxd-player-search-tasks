@@ -2040,3 +2040,44 @@ The current cross-shard `bloxd_fetch` error journal has **175** `:err` markers. 
 Controller #320 / [46096067319](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46096067319) has committed Run #248 progress (`last_run_id=46095308447`, `total_runs_observed=233`) and is waiting at the protected writer-window guard. No next writer was active or queued during the reads. Do not manually dispatch or overlap writers.
 
 All five worker cycles remain `wrapped=false` and `completed=false`. The cursors remain below the current four-shard maximum **3,395,345** and have not wrapped below **242336**. This checkpoint is not full-pass completion.
+
+## Verified Enrichment Runs #250–#270 — 2026-11-28 UTC
+
+All 21 enrichment runs completed successfully, each with a successful cutover gate, prepare, all five workers, and notify-controller handoff. Every prepare job and every worker log pinned exact source runner SHA `e615eb86c7e83935dc86dba30018141cbc819889`. The source changes after the PR #13 runtime commit are README_SYSTEMS.md documentation-only changes. Every worker used `--limit 1000 --sleep 0.7 --fetch-cap 400`; no legacy probe arguments were present.
+
+| Run | Run ID | Tracked changes / snapshots | Gone | Fetch errors | Cooldown skips |
+|---:|---:|---:|---:|---:|---:|
+| 250 | [46097038535](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46097038535) | 2,000 | 0 | 0 | 0 |
+| 251 | [46098018861](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46098018861) | 2,000 | 1 | 1 | 0 |
+| 252 | [46100192822](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46100192822) | 1,761 | 1 | 0 | 0 |
+| 253 | [46101508013](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46101508013) | 2,000 | 1 | 1 | 0 |
+| 254 | [46102508777](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46102508777) | 1,839 | 0 | 0 | 1 |
+| 255 | [46104882926](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46104882926) | 1,601 | 0 | 0 | 0 |
+| 256 | [46105640279](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46105640279) | 1,999 | 0 | 0 | 0 |
+| 257 | [46106341720](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46106341720) | 2,000 | 1 | 0 | 0 |
+| 258 | [46107279216](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46107279216) | 2,000 | 3 | 1 | 0 |
+| 259 | [46109500253](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46109500253) | 1,997 | 1 | 0 | 0 |
+| 260 | [46110338527](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46110338527) | 2,000 | 0 | 1 | 0 |
+| 261 | [46111196985](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46111196985) | 1,806 | 3 | 1 | 1 |
+| 262 | [46112062103](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46112062103) | 1,208 | 0 | 0 | 0 |
+| 263 | [46114053575](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46114053575) | 1,999 | 0 | 0 | 0 |
+| 264 | [46114861621](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46114861621) | 2,000 | 3 | 0 | 0 |
+| 265 | [46115700027](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46115700027) | 2,000 | 0 | 1 | 0 |
+| 266 | [46116576627](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46116576627) | 1,791 | 0 | 0 | 1 |
+| 267 | [46118640825](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46118640825) | 1,601 | 0 | 0 | 0 |
+| 268 | [46119460346](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46119460346) | 1,999 | 1 | 0 | 0 |
+| 269 | [46120335900](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46120335900) | 2,000 | 2 | 1 | 0 |
+| 270 | [46121203831](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46121203831) | 1,634 | 0 | 0 | 0 |
+| **Total** | **21 successful runs** | **39,235** | **17** | **7** | **3** |
+
+All **105/105 worker jobs** printed a nonzero per-player change-report row count and attachment byte count, followed by **Discord webhook HTTP 200**. This verifies the PR #13 notification reporting/filter implementation in production throughout this batch; no delivery failure or HTTP429 appeared. The seven HTTP502s were transient profile fetch failures. Each subsequently had a later run re-enter its retained cursor and progress beyond it without a new error: #251→#252; #253 remained held during cooldown in #254 and moved in #255; #258→#259; #260 remained held in #261 and moved in #262; #261→#262; #265 remained held in #266 and moved in #267; #269→#270. These are cursor-level retry confirmations only; the next no-writer Neon reconciliation must independently verify later `players.updated_at` and later latest snapshot for all seven before marking them recovered.
+
+Run #270 / [46121203831](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46121203831) completed successfully. Its exact worker cursors (workers 0–4) are **764780 / 759801 / 754002 / 759283 / 755704**; the worker summaries report pending 600 / 600 / 600 / 600 / 600. All five remain in the forward pass; every worker cycle is still `wrapped=false` / `completed=false`.
+
+### Continuation and reconciliation boundary
+
+Controller #345 / [46121996013](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46121996013) is the sole active continuation and is waiting at the protected census/sweep writer guard. No enrich/census/sweep writer is active or queued. Do not dispatch manually or create a parallel controller. The controller has already committed its progress state through Run #270; its note remains older than the structured worker fields.
+
+The latest full four-shard database reconciliation remains the verified post-Run #248 checkpoint documented above. Do not treat cursor movement as database reconciliation. After controller #345 dispatches and the next run plus progress handoff finish, wait for a no-writer/no-controller window, then re-read all four shards, compare persisted cursors, count current forward rows, and verify the seven HTTP502 recoveries against both player and snapshot timestamps. Refresh the progress note only from the latest JSON blob SHA and preserve all controller-owned cursor, cycle, and last-run fields.
+
+The first full refresh is not complete: no worker has yet crossed the current database maximum, wrapped below 242336, and advanced back through that boundary. Keep `ENRICH_PROGRESS.json` status as running until all five strict cycle conditions and the final all-shard acceptance checks pass.
