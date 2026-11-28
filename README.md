@@ -8,6 +8,15 @@ repository. Pandra's CI and scheduled jobs remain in
 This repository contains workflow definitions only. The private application
 source and player data are not copied here.
 
+> **Historical run-log note:** dated sections below preserve what each older
+> run actually did at that time. Records mentioning the former name/redirect
+> A-gate, HEAD probes, or probe429 describe pre-2026-11-28 code and are not the
+> current fetch policy. Current enrichment uses only the shared successful-
+> fetch journal cooldown (24 hours); it fetches the full profile irrespective
+> of name/cosmetics. The social sweep is manual recovery. Current Discord
+> notifications report all meaningful profile fields and log HTTP delivery.
+> The latest verified operational checkpoint is at the end of this document.
+
 ## Workflows
 
 | Workflow | Trigger | Work |
