@@ -2246,3 +2246,11 @@ PR #16 / [Persist successful full-profile fetch journal outcomes](https://github
 Exact-head validation Run #4 / [46132590203](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46132590203) pinned that exact SHA and passed compileall, all **59 unit/SQLite tests**, and the disposable four-shard PostgreSQL writer integration. The PostgreSQL test asserts the new bulk attempt journal rows remain exclusively on the shard01 control database. No production data changed.
 
 The native source-repository `Neon sharding tests` check for this latest head is Run [46132581787](https://github.com/imu31465/bloxd-player-search/actions/runs/46132581787). Both attempt 1 and targeted retry attempt 2 failed with `steps=null`, `logs_url=null`, and no downloadable job log. This repeats the same native runner-allocation failure documented above; PR #16 remains open/unmerged until its native required check is green. No check bypass or manual merge is permitted.
+
+
+
+## Recovery handoff completed; Run #279 active — 2026-11-28 UTC
+
+Controller #357 / [46132428009](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46132428009) completed successfully at 10:02:52Z. It rechecked the protected census grace, processed Run #278's completion and dispatched Run #279 / [46133286092](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46133286092) at 10:02:50Z. Run #279's cutover and prepare jobs passed; prepare pinned the exact current source runner HEAD `5ecd484fd0ae1524992dead43fba99b629165c12`. At the latest check all five worker jobs were active. Do not manually dispatch another run.
+
+The controller-owned `ENRICH_PROGRESS.json` now records `last_run_id=46130308404` (Run #278), `total_runs_observed=263`, and worker cursor ends **780790 / 775826 / 770047 / 775333 / 771744** (workers 0–4). All worker cycles remain `wrapped=false` and `completed=false`. Run #279 remains active; Neon reconciliation must wait for its completion and a no-controller/no-writer interval. The latest all-shard database checkpoint remains post-Run #274.
