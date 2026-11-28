@@ -1999,6 +1999,7 @@ is still in progress.
 
 After Run #247, source `runner` received documentation-only updates to
 `README_SYSTEMS.md`; the current exact branch head is
-`d8632fe2c4cf9eb40261189fec0b16612bfa5cc4`. No application, fetch, rate, cursor, snapshot, or notification code
-changed in those commits. The next prepare job should pin this documentation-
-only head.
+`8aff54c05c78af992463f8ccb2d37a83b88a62c5`. These commits corrected the
+current cutover, workflow, notification, and active four-shard documentation;
+no application, fetch, rate, cursor, snapshot, or notification code changed.
+The next prepare job should pin this documentation-only head.
