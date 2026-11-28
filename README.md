@@ -2237,3 +2237,12 @@ The continuation controller's protected writer-window guard now bounds each GitH
 Workflow update commit: `fb31a1bcf61f9296b174ec6a767244bc23fcf3a0`. It queued controller #357 / [46132428009](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46132428009) behind controller #354 / [46130272940](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46130272940). The earlier pending controller #356 was superseded by the newer pending controller due the workflow's single pending concurrency slot. At the latest check #354 was still at the writer guard and #357 pending; no writer was active. Do not manually dispatch or cancel an enrichment writer. Progress JSON remains at Run277 until a controller catches up Run278 and commits it.
 
 The exact cause of #354's unusually long writer-guard step is not confirmed because GitHub does not expose a running job log blob. An unbounded API request was a plausible hang point; the new cap ensures later controller attempts can recover without weakening writer exclusion.
+
+
+## PR #16 latest validation — head e7a41bcb — 2026-11-28 UTC
+
+PR #16 / [Persist successful full-profile fetch journal outcomes](https://github.com/imu31465/bloxd-player-search/pull/16) has advanced to exact head `e7a41bcb9d8bc1d3a1f851614522b57a2ddf2c0d`, based directly on current runner `5ecd484fd0ae1524992dead43fba99b629165c12` (ahead6/behind0). Along with batch-persisting enrich :ok/:err/:gone outcomes and failing closed before cursor advancement, this head also makes manual social-sweep workers fail closed if their batched attempt journal + cursor write cannot be committed.
+
+Exact-head validation Run #4 / [46132590203](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46132590203) pinned that exact SHA and passed compileall, all **59 unit/SQLite tests**, and the disposable four-shard PostgreSQL writer integration. The PostgreSQL test asserts the new bulk attempt journal rows remain exclusively on the shard01 control database. No production data changed.
+
+The native source-repository `Neon sharding tests` check for this latest head is Run [46132581787](https://github.com/imu31465/bloxd-player-search/actions/runs/46132581787). Its first attempt failed with `steps=null` and no downloadable log. A targeted retry has been requested. This repeats the same native runner-allocation failure documented above; PR #16 remains open/unmerged until its native required check is green. No check bypass or manual merge is permitted.
