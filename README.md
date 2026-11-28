@@ -2076,7 +2076,7 @@ Run #270 / [46121203831](https://github.com/imu31465/bloxd-player-search-tasks/a
 
 ### Continuation and reconciliation boundary
 
-Controller #345 / [46121996013](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46121996013) is the sole active continuation and is waiting at the protected census/sweep writer guard. No enrich/census/sweep writer is active or queued. Do not dispatch manually or create a parallel controller. The controller has already committed its progress state through Run #270; its note remains older than the structured worker fields.
+Historical checkpoint immediately after Run #270: controller #345 / [46121996013](https://github.com/imu31465/bloxd-player-search-tasks/actions/runs/46121996013) was waiting at the protected census/sweep writer guard and owned continuation. It has since completed and dispatched later runs; see the Runs #271–#273 section below for the current continuation state.
 
 The latest full four-shard database reconciliation remains the verified post-Run #248 checkpoint documented above. Do not treat cursor movement as database reconciliation. After controller #345 dispatches and the next run plus progress handoff finish, wait for a no-writer/no-controller window, then re-read all four shards, compare persisted cursors, count current forward rows, and verify the seven HTTP502 recoveries against both player and snapshot timestamps. Refresh the progress note only from the latest JSON blob SHA and preserve all controller-owned cursor, cycle, and last-run fields.
 
